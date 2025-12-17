@@ -120,6 +120,11 @@ docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllA
 
 Lệnh này sẽ xóa toàn bộ container, volumes và artifacts (bao gồm cả crypto material).
 
+## Tài liệu tham khảo
+
+- [Hướng dẫn chi tiết về CCAAS và Quá trình Debug](docs/CCAAS_THEORY_AND_PRACTICE.md): Đọc tài liệu này để hiểu sâu về kiến trúc Chaincode-as-a-Service và cách khắc phục các lỗi mạng lưới.
+
+
 
 Lệnh này sẽ dọn dẹp tất cả containers, volumes và crypto material.
 
