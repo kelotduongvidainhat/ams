@@ -91,11 +91,35 @@ docker logs peer0.org1.example.com
 docker logs orderer1.example.com
 ```
 
-### 5. Tắt mạng lưới
+### 5. Deploy Chaincode (Sử dụng Chaincode-as-a-Service)
+
+Hệ thống sử dụng mô hình CCAAS (Chaincode-as-a-Service) để tránh lỗi build Docker-in-Docker. Chaincode chạy dưới dạng Docker container riêng biệt.
+
+```bash
+# Deploy chaincode cơ bản (Asset Transfer)
+./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0
+```
+
+Lệnh này sẽ:
+1. Build Docker image cho chaincode
+2. Chạy container chaincode (tên `basic_1.0`)
+3. Cài đặt connection profile lên Peer
+4. Approve, Commit và Init chaincode
+
+Kiểm tra chaincode hoạt động:
+```bash
+# Query tất cả tài sản
+docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
+```
+
+### 6. Tắt mạng lưới
 
 ```bash
 ./network.sh down
 ```
+
+Lệnh này sẽ xóa toàn bộ container, volumes và artifacts (bao gồm cả crypto material).
+
 
 Lệnh này sẽ dọn dẹp tất cả containers, volumes và crypto material.
 

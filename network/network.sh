@@ -46,8 +46,8 @@ function networkDown() {
   # Remove generated artifacts
   rm -rf organizations/peerOrganizations
   rm -rf organizations/ordererOrganizations
-  rm -rf organizations/fabric-ca/org1/msp organizations/fabric-ca/org1/tls-cert.pem organizations/fabric-ca/org1/ca-cert.pem organizations/fabric-ca/org1/IssuerPublicKey organizations/fabric-ca/org1/IssuerRevocationPublicKey organizations/fabric-ca/org1/fabric-ca-server.db
-  rm -rf organizations/fabric-ca/ordererOrg/msp organizations/fabric-ca/ordererOrg/tls-cert.pem organizations/fabric-ca/ordererOrg/ca-cert.pem organizations/fabric-ca/ordererOrg/IssuerPublicKey organizations/fabric-ca/ordererOrg/IssuerRevocationPublicKey organizations/fabric-ca/ordererOrg/fabric-ca-server.db
+  rm -rf organizations/fabric-ca/org1 organizations/fabric-ca/org1/tls-cert.pem organizations/fabric-ca/org1/ca-cert.pem organizations/fabric-ca/org1/IssuerPublicKey organizations/fabric-ca/org1/IssuerRevocationPublicKey organizations/fabric-ca/org1/fabric-ca-server.db
+  rm -rf organizations/fabric-ca/ordererOrg organizations/fabric-ca/ordererOrg/tls-cert.pem organizations/fabric-ca/ordererOrg/ca-cert.pem organizations/fabric-ca/ordererOrg/IssuerPublicKey organizations/fabric-ca/ordererOrg/IssuerRevocationPublicKey organizations/fabric-ca/ordererOrg/fabric-ca-server.db
   rm -rf channel-artifacts/*.block channel-artifacts/*.tx
   rm -rf system-genesis-block/*.block
   
@@ -144,6 +144,26 @@ while [[ $# -ge 1 ]] ; do
     CHANNEL_NAME="$2"
     shift
     ;;
+  -ccn )
+    CC_NAME="$2"
+    shift
+    ;;
+  -ccp )
+    CC_SRC_PATH="$2"
+    shift
+    ;;
+  -ccl )
+    CC_LANGUAGE="$2"
+    shift
+    ;;
+  -ccv )
+    CC_VERSION="$2"
+    shift
+    ;;
+  -ccs )
+    CC_SEQUENCE="$2"
+    shift
+    ;;
   * )
     echo "Unknown flag: $key"
     printHelp
@@ -163,6 +183,8 @@ elif [ "$MODE" == "restart" ]; then
   networkUp
 elif [ "$MODE" == "createChannel" ]; then
   createChannel ${CHANNEL_NAME:-mychannel}
+elif [ "$MODE" == "deployCC" ]; then
+  scripts/deployCCAAS.sh "${CHANNEL_NAME:-mychannel}" "${CC_NAME:-basic}" "${CC_SRC_PATH:-./chaincode/asset-transfer}" "${CC_VERSION:-1.0}" "${CC_SEQUENCE:-1}"
 else
   printHelp
   exit 1

@@ -71,7 +71,7 @@ joinChannel() {
 setAnchorPeer() {
   PEER=$1
   ORG=$2
-  docker exec cli peer channel fetch config channel-artifacts/config_block.pb -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com -c $CHANNEL_NAME --tls --cafile \$ORDERER_CA
+  docker exec cli peer channel fetch config channel-artifacts/config_block.pb -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com -c $CHANNEL_NAME --tls --cafile $ORDERER_CA_CONTAINER
   
   echo "Fetched config block"
   
@@ -88,7 +88,7 @@ setAnchorPeer() {
   docker exec cli sh -c 'echo "{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$CHANNEL_NAME'\", \"type\":2}},\"data\":{\"config_update\":"$(cat channel-artifacts/config_update.json)"}}}" | jq . > channel-artifacts/config_update_in_envelope.json'
   docker exec cli configtxlator proto_encode --input channel-artifacts/config_update_in_envelope.json --type common.Envelope --output channel-artifacts/config_update_in_envelope.pb
   
-  docker exec cli peer channel update -f channel-artifacts/config_update_in_envelope.pb -c $CHANNEL_NAME -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile \$ORDERER_CA
+  docker exec cli peer channel update -f channel-artifacts/config_update_in_envelope.pb -c $CHANNEL_NAME -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile $ORDERER_CA_CONTAINER
 }
 
 verifyResult() {
@@ -101,6 +101,7 @@ verifyResult() {
 
 FABRIC_CFG_PATH=${PWD}
 ORDERER_CA=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+ORDERER_CA_CONTAINER=/opt/gopath/src/github.com/hyperledger/fabric/peer/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
 ORDERER_ADMIN_TLS_SIGN_CERT=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/tls/server.crt
 ORDERER_ADMIN_TLS_PRIVATE_KEY=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/tls/server.key
 
