@@ -14,11 +14,16 @@ network/
 ├── docker/
 │   ├── docker-compose.yaml       # Docker compose cho peers và orderers
 │   └── docker-compose-ca.yaml    # Docker compose cho Certificate Authorities
-├── scripts/
-│   └── registerEnroll.sh         # Script đăng ký và enroll identities
 ├── organizations/                # Chứa crypto material (sẽ được tạo tự động)
 ├── channel-artifacts/            # Chứa channel artifacts
 └── system-genesis-block/         # Chứa genesis block
+
+scripts/                          # (Thư mục gốc)
+├── registerEnroll.sh             # Script đăng ký và enroll identities
+├── createChannel.sh              # Script tạo channel
+├── deployCC.sh                   # Script deploy chaincode
+├── deployCCAAS.sh                # Script deploy CCAAS
+└── envVar.sh                     # Biến môi trường
 ```
 
 ## Yêu cầu
@@ -39,7 +44,7 @@ curl -sSL https://bit.ly/2ysbOFE | bash -s -- 2.5.9 1.5.12 -d -s
 
 ```bash
 cd network
-chmod +x network.sh scripts/registerEnroll.sh
+chmod +x network.sh ../scripts/*.sh
 ./network.sh up
 ```
 
