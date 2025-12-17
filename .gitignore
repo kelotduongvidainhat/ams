@@ -1,0 +1,67 @@
+# Hyperledger Fabric binaries
+bin/
+builders/
+config/
+
+# Generated crypto material
+network/organizations/peerOrganizations/
+network/organizations/ordererOrganizations/
+network/organizations/fabric-ca/org1/msp/
+network/organizations/fabric-ca/org1/tls-cert.pem
+network/organizations/fabric-ca/org1/ca-cert.pem
+network/organizations/fabric-ca/org1/IssuerPublicKey
+network/organizations/fabric-ca/org1/IssuerRevocationPublicKey
+network/organizations/fabric-ca/org1/fabric-ca-server.db
+network/organizations/fabric-ca/ordererOrg/msp/
+network/organizations/fabric-ca/ordererOrg/tls-cert.pem
+network/organizations/fabric-ca/ordererOrg/ca-cert.pem
+network/organizations/fabric-ca/ordererOrg/IssuerPublicKey
+network/organizations/fabric-ca/ordererOrg/IssuerRevocationPublicKey
+network/organizations/fabric-ca/ordererOrg/fabric-ca-server.db
+
+# Channel artifacts
+network/channel-artifacts/*.block
+network/channel-artifacts/*.tx
+network/channel-artifacts/*.pb
+network/channel-artifacts/*.json
+network/system-genesis-block/*.block
+
+# Logs
+*.log
+log.txt
+
+# Docker volumes
+*.tar.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if using Node.js SDK)
+node_modules/
+package-lock.json
+
+# Python (if using Python SDK)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Go (if using Go chaincode)
+vendor/
+*.exe
+*.test
+*.prof
+
+# Temporary files
+tmp/
+temp/
