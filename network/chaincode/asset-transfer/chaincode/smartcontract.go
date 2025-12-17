@@ -18,23 +18,25 @@ func NewSmartContract() (*SmartContract, error) {
 }
 
 // Asset describes basic details of what makes up a simple asset
+// Adjusted for generic commercial transactions (Product X)
 type Asset struct {
-	ID             string `json:"ID"`
-	Color          string `json:"color"`
-	Size           int    `json:"size"`
-	Owner          string `json:"owner"`
-	AppraisedValue int    `json:"appraisedValue"`
+	ID     string `json:"ID"`
+	Name   string `json:"name"`   // Product Name (e.g., "MacBook Pro")
+	Type   string `json:"type"`   // Category (e.g., "Electronics", "RealEstate")
+	Owner  string `json:"owner"`  // Current Owner
+	Value  int    `json:"value"`  // Monetary Value
+	Status string `json:"status"` // Status (e.g., "Available", "Sold", "Locked")
 }
 
 // InitLedger adds a base set of assets to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	assets := []Asset{
-		{ID: "asset1", Color: "blue", Size: 5, Owner: "Tomoko", AppraisedValue: 300},
-		{ID: "asset2", Color: "red", Size: 5, Owner: "Brad", AppraisedValue: 400},
-		{ID: "asset3", Color: "green", Size: 10, Owner: "Jin Soo", AppraisedValue: 500},
-		{ID: "asset4", Color: "yellow", Size: 10, Owner: "Max", AppraisedValue: 600},
-		{ID: "asset5", Color: "black", Size: 15, Owner: "Adriana", AppraisedValue: 700},
-		{ID: "asset6", Color: "white", Size: 15, Owner: "Michel", AppraisedValue: 800},
+		{ID: "asset1", Name: "iPhone 15 Pro", Type: "Electronics", Owner: "Tomoko", Value: 1000, Status: "Available"},
+		{ID: "asset2", Name: "Tesla Model S", Type: "Vehicle", Owner: "Brad", Value: 80000, Status: "Available"},
+		{ID: "asset3", Name: "Penthouse Suite", Type: "RealEstate", Owner: "Jin Soo", Value: 500000, Status: "Owned"},
+		{ID: "asset4", Name: "Gold Bar 1kg", Type: "PreciousMetal", Owner: "Max", Value: 65000, Status: "Locked"},
+		{ID: "asset5", Name: "Antique Vase", Type: "Art", Owner: "Adriana", Value: 5000, Status: "Available"},
+		{ID: "asset6", Name: "Bitcoin", Type: "Crypto", Owner: "Michel", Value: 45000, Status: "Available"},
 	}
 
 	for _, asset := range assets {
@@ -53,7 +55,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 }
 
 // CreateAsset issues a new asset to the world state with given details.
-func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface, id string, color string, size int, owner string, appraisedValue int) error {
+func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, value int, status string) error {
 	exists, err := s.AssetExists(ctx, id)
 	if err != nil {
 		return err
@@ -63,11 +65,12 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 	}
 
 	asset := Asset{
-		ID:             id,
-		Color:          color,
-		Size:           size,
-		Owner:          owner,
-		AppraisedValue: appraisedValue,
+		ID:     id,
+		Name:   name,
+		Type:   assetType,
+		Owner:  owner,
+		Value:  value,
+		Status: status,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -97,7 +100,7 @@ func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, i
 }
 
 // UpdateAsset updates an existing asset in the world state with provided parameters.
-func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface, id string, color string, size int, owner string, appraisedValue int) error {
+func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, value int, status string) error {
 	exists, err := s.AssetExists(ctx, id)
 	if err != nil {
 		return err
@@ -107,11 +110,12 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 	}
 
 	asset := Asset{
-		ID:             id,
-		Color:          color,
-		Size:           size,
-		Owner:          owner,
-		AppraisedValue: appraisedValue,
+		ID:     id,
+		Name:   name,
+		Type:   assetType,
+		Owner:  owner,
+		Value:  value,
+		Status: status,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -150,6 +154,10 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 	if err != nil {
 		return err
 	}
+
+	// Optional: Add logic here (e.g., check if Status == "Available" before transfer)
+	// For now, we allow transfer regardless of status, but we could enforce it.
+	// if asset.Status != "Available" { return fmt.Errorf("Asset is %s, cannot transfer", asset.Status) }
 
 	asset.Owner = newOwner
 	assetJSON, err := json.Marshal(asset)
