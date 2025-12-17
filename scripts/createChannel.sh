@@ -9,7 +9,7 @@ MAX_RETRY="$3"
 : ${MAX_RETRY:="5"}
 
 # imports
-. scripts/envVar.sh
+. ../scripts/envVar.sh
 
 if [ ! -d "channel-artifacts" ]; then
 	mkdir channel-artifacts

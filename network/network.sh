@@ -76,7 +76,7 @@ function networkUp() {
 
   # Create crypto material using CA
   echo "Creating Org1 Identities"
-  . scripts/registerEnroll.sh
+  . ../scripts/registerEnroll.sh
   createOrg1
 
   echo "Creating Orderer Org Identities"
@@ -120,10 +120,10 @@ function createChannel() {
   echo "Creating channel: $CHANNEL_NAME"
   
   # Make scripts executable
-  chmod +x scripts/createChannel.sh scripts/envVar.sh
+  chmod +x ../scripts/createChannel.sh ../scripts/envVar.sh
   
   # Run the channel creation script
-  ./scripts/createChannel.sh $CHANNEL_NAME
+  ../scripts/createChannel.sh $CHANNEL_NAME
   
   echo "Channel creation completed!"
 }
@@ -184,7 +184,7 @@ elif [ "$MODE" == "restart" ]; then
 elif [ "$MODE" == "createChannel" ]; then
   createChannel ${CHANNEL_NAME:-mychannel}
 elif [ "$MODE" == "deployCC" ]; then
-  scripts/deployCCAAS.sh "${CHANNEL_NAME:-mychannel}" "${CC_NAME:-basic}" "${CC_SRC_PATH:-./chaincode/asset-transfer}" "${CC_VERSION:-1.0}" "${CC_SEQUENCE:-1}"
+  ../scripts/deployCCAAS.sh "${CHANNEL_NAME:-mychannel}" "${CC_NAME:-basic}" "${CC_SRC_PATH:-./chaincode/asset-transfer}" "${CC_VERSION:-1.0}" "${CC_SEQUENCE:-1}"
 else
   printHelp
   exit 1

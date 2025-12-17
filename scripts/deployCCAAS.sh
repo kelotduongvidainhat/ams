@@ -1,63 +1,72 @@
 #!/bin/bash
 
-
 export PATH=${PWD}/../bin:$PATH
-source scripts/envVar.sh
-
+export FABRIC_CFG_PATH=${PWD}/../config
+source ../scripts/envVar.sh
 
 CHANNEL_NAME=${1:-"mychannel"}
 CC_NAME=${2:-"basic"}
 CC_SRC_PATH=${3:-"./chaincode/asset-transfer"}
-CC_SRC_LANGUAGE=${4:-"golang"}
-CC_VERSION=${5:-"1.0"}
-CC_SEQUENCE=${6:-"1"}
-CC_INIT_FCN=${7:-"InitLedger"}
-CC_END_POLICY=${8:-"NA"}
-CC_COLL_CONFIG=${9:-"NA"}
-DELAY=${10:-"3"}
-MAX_RETRY=${11:-"5"}
-VERBOSE=${12:-"false"}
+CC_VERSION=${4:-"1.0"}
+CC_SEQUENCE=${5:-"1"}
+docker_network_name="fabric_network"
 
-println() {
-  echo "$1"
-}
-
-export FABRIC_CFG_PATH=$PWD/../config/
-
-# User has to set FABRIC_CFG_PATH to the config folder if they are running this locally
-if [ -d "../config" ]; then
-    export FABRIC_CFG_PATH=$PWD/../config/
-else 
-    # If not found, fall back to current dir or docker default
-     export FABRIC_CFG_PATH=$PWD
-fi
-
-# Function to check if a command exists
-checkPrereqs() {
-  peer version > /dev/null 2>&1
-  if [[ $? -ne 0 ]]; then
-    echo "Peer binary not found. Please ensure it is in your PATH."
-    exit 1
-  fi
-}
-
-packageChaincode() {
-  rm -rf channel-artifacts/${CC_NAME}.tar.gz
-  set -x
+# Setup CCAAS package
+preparePackage() {
+  echo "Preparing CCAAS package..."
+  rm -rf chaincode/asset-transfer/ccaas
+  mkdir -p chaincode/asset-transfer/ccaas
   
-  echo "Vendoring dependencies..."
-  pushd ${CC_SRC_PATH}
-  go mod tidy
-  go mod vendor
+  # connection.json
+  # Address points to the chaincode container name. 
+  # We will name the container ${CC_NAME}_${CC_VERSION}
+  cat > chaincode/asset-transfer/ccaas/connection.json <<EOF
+{
+  "address": "${CC_NAME}_${CC_VERSION}:9999",
+  "dial_timeout": "10s",
+  "tls_required": false
+}
+EOF
+
+  # metadata.json
+  cat > chaincode/asset-transfer/ccaas/metadata.json <<EOF
+{
+    "type": "ccaas",
+    "label": "${CC_NAME}_${CC_VERSION}"
+}
+EOF
+
+  # Tar the package
+  pushd chaincode/asset-transfer/ccaas
+  tar -czf code.tar.gz connection.json
+  tar -czf ${CC_NAME}.tar.gz metadata.json code.tar.gz
+  mv ${CC_NAME}.tar.gz ../../../channel-artifacts/
   popd
+  echo "CCAAS package created at channel-artifacts/${CC_NAME}.tar.gz"
+}
+
+# Build and run chaincode container
+buildAndRunChaincode() {
+  echo "Building Chaincode Docker Image..."
+  docker build -t ${CC_NAME}_image -f ${CC_SRC_PATH}/Dockerfile ${CC_SRC_PATH}
   
-  echo "Packaging chaincode..."
-  peer lifecycle chaincode package channel-artifacts/${CC_NAME}.tar.gz --path ${CC_SRC_PATH} --lang ${CC_SRC_LANGUAGE} --label ${CC_NAME}_${CC_VERSION} >&log.txt
-  res=$?
-  { set +x; } 2>/dev/null
-  cat log.txt
-  verifyResult $res "Chaincode packaging has failed"
-  echo "Chaincode is packaged"
+  echo "Stopping any existing chaincode container..."
+  docker rm -f ${CC_NAME}_${CC_VERSION} || true
+  
+  # Calculate Package ID
+  # We need to install first to get the ID, OR we can calculate it if we have 'peer' binary with 'calculatepackageid'.
+  # But simplest is to install, grep the ID, then start the container.
+}
+
+startChaincodeContainer() {
+  PACKAGE_ID=$1
+  echo "Starting Chaincode Container with Package ID: $PACKAGE_ID"
+  
+  docker run -d --name ${CC_NAME}_${CC_VERSION} --network $docker_network_name \
+    -e CHAINCODE_SERVER_ADDRESS=0.0.0.0:9999 \
+    -e CORE_CHAINCODE_ID_NAME=$PACKAGE_ID \
+    -e CHAINCODE_ID=$PACKAGE_ID \
+    ${CC_NAME}_image
 }
 
 # installChaincode PEER ORG
@@ -78,27 +87,11 @@ installChaincode() {
   { set +x; } 2>/dev/null
   cat log.txt
   verifyResult $res "Chaincode installation on peer${PEER}.org${ORG} has failed"
-  echo "Chaincode is installed on peer${PEER}.org${ORG}"
-}
-
-# queryInstalled PEER ORG
-queryInstalled() {
-  PEER=$1
-  ORG=$2
-  setGlobals $PEER $ORG
   
-  set -x
-  docker exec -e CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID \
-              -e CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE \
-              -e CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH \
-              -e CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS \
-              cli peer lifecycle chaincode queryinstalled >&log.txt
-  res=$?
-  { set +x; } 2>/dev/null
-  cat log.txt
-  PACKAGE_ID=$(sed -n "/${CC_NAME}_${CC_VERSION}/{s/^Package ID: //; s/, Label:.*$//; p;}" log.txt)
-  verifyResult $res "Query installed on peer${PEER}.org${ORG} has failed"
-  echo "Package ID is ${PACKAGE_ID}"
+  # Extract Package ID
+  PACKAGE_ID=$(peer lifecycle chaincode calculatepackageid channel-artifacts/${CC_NAME}.tar.gz | tr -d '\n' | tr -d '\r')
+  echo "Chaincode is installed on peer${PEER}.org${ORG}"
+  echo "Calculated Package ID: '${PACKAGE_ID}'"
 }
 
 # approveForMyOrg PEER ORG
@@ -127,7 +120,6 @@ commitChaincodeDefinition() {
   PEER=$1
   ORG=$2
   setGlobals $PEER $ORG
-  # We should look up the orderer CA from envVar.sh or similar
   
   echo "Committing chaincode definition..."
   
@@ -157,7 +149,7 @@ initChaincode() {
               -e CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE \
               -e CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH \
               -e CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS \
-              cli peer lifecycle chaincode invoke -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile $ORDERER_CA -C $CHANNEL_NAME -n $CC_NAME --isInit -c '{"function":"'${CC_INIT_FCN}'","Args":[]}' >&log.txt
+              cli peer chaincode invoke -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile $ORDERER_CA -C $CHANNEL_NAME -n $CC_NAME --isInit -c '{"function":"InitLedger","Args":[]}' >&log.txt
   res=$?
   { set +x; } 2>/dev/null
   cat log.txt
@@ -165,14 +157,15 @@ initChaincode() {
   echo "Chaincode initialized"
 }
 
-## Package the chaincode
-packageChaincode
+## Execution Flow
+preparePackage
+buildAndRunChaincode
 
-## Install chaincode on peer0.org1
+## Install chaincode on peer0.org1 (returns PACKAGE_ID)
 installChaincode 0 1
 
-## Query installed
-queryInstalled 0 1
+## Start the CCAAS container now that we have the Package ID
+startChaincodeContainer $PACKAGE_ID
 
 ## Approve for Org1
 approveForMyOrg 0 1
@@ -180,7 +173,14 @@ approveForMyOrg 0 1
 ## Commit definition
 commitChaincodeDefinition 0 1
 
-## Init chaincode
+## Init chaincode (Wait a bit for container to start)
+sleep 5
 initChaincode 0 1
+
+echo "========================================================="
+echo "CCAAS Chaincode Deployment Successful!"
+echo "Chaincode Container: ${CC_NAME}_${CC_VERSION}"
+echo "Package ID: $PACKAGE_ID"
+echo "========================================================="
 
 exit 0
