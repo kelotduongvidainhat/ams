@@ -32,8 +32,15 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// FabricConnection holds the contract and network for API access
+type FabricConnection struct {
+	Contract *client.Contract
+	Network  *client.Network
+}
+
 // InitContract initializes the Fabric Contract client
-func InitContract() (*client.Contract, error) {
+func InitContract() (*FabricConnection, error) {
+
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	
@@ -58,7 +65,11 @@ func InitContract() (*client.Contract, error) {
 	network := gw.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
 
-	return contract, nil
+	return &FabricConnection{
+		Contract: contract,
+		Network:  network,
+	}, nil
+
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway peer

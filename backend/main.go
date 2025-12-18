@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"log"
 
-	"ams/backend/fabric"
-
+	"os"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+
+	"ams/backend/fabric"
+	"ams/backend/sync"
 )
+
 
 func main() {
 	// Initialize Fiber app
@@ -32,6 +35,30 @@ func main() {
 	}
 	log.Println("Connected to Fabric Network successfully!")
 
+	// Connect to PostgreSQL
+	pgInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_HOST"), "5432", "ams_user", "ams_password", "ams_db")
+	// If running locally (not in docker), default to localhost
+	if os.Getenv("POSTGRES_HOST") == "" {
+		pgInfo = "host=localhost port=5432 user=ams_user password=ams_password dbname=ams_db sslmode=disable"
+	}
+
+	pgDB, err := sync.ConnectPostgres(pgInfo)
+	if err != nil {
+		log.Printf("⚠️ Failed to connect to PostgreSQL (Indexing disabled): %v", err)
+	} else {
+		log.Println("✅ Connected to PostgreSQL for Off-Chain Indexing")
+		
+		// Start Block Listener
+		listener := &sync.BlockListener{
+			Network:   contract.Network, // We need to access the Network object, not just Contract
+			DB:        pgDB,
+			Chaincode: "basic",
+		}
+		go listener.StartEventListening()
+	}
+
+
 	// Health Check
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -47,7 +74,8 @@ func main() {
 		userRole := c.Query("user_role")
 
 		log.Printf("Evaluating Transaction: GetAllAssets for User: %s (%s)", userId, userRole)
-		evaluateResult, err := contract.EvaluateTransaction("GetAllAssets")
+		evaluateResult, err := contract.Contract.EvaluateTransaction("GetAllAssets")
+
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -115,7 +143,8 @@ func main() {
 		log.Printf("Submitting Transaction: CreateAsset, ID: %s", p.ID)
 		
 		// CreateAsset(id, name, type, owner, value, status, metadataUrl, metadataHash)
-		_, err := contract.SubmitTransaction("CreateAsset", 
+		_, err := contract.Contract.SubmitTransaction("CreateAsset", 
+ 
 			p.ID, 
 			p.Name, 
 			p.Type, 
@@ -143,7 +172,8 @@ func main() {
 		id := c.Params("id")
 		log.Printf("Evaluating Transaction: GetAssetHistory, ID: %s", id)
 
-		evaluateResult, err := contract.EvaluateTransaction("GetAssetHistory", id)
+		evaluateResult, err := contract.Contract.EvaluateTransaction("GetAssetHistory", id)
+
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -164,7 +194,8 @@ func main() {
 		}
 
 		log.Printf("Submitting Transaction: TransferAsset, ID: %s to %s", id, p.NewOwner)
-		_, err := contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
+		_, err := contract.Contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
+
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to transfer asset: " + err.Error()})
 		}
@@ -185,7 +216,8 @@ func main() {
 		}
 
 		log.Printf("Submitting Transaction: GrantAccess for Asset %s to %s", id, p.ViewerID)
-		_, err := contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
+		_, err := contract.Contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
+
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to grant access: " + err.Error()})
 		}
@@ -211,7 +243,8 @@ func main() {
 
 		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
 		
-		_, err := contract.SubmitTransaction("CreateUser", 
+		_, err := contract.Contract.SubmitTransaction("CreateUser", 
+ 
 			p.ID, 
 			p.FullName, 
 			p.IdentityNumber, 
@@ -233,7 +266,8 @@ func main() {
 		id := c.Params("id")
 		log.Printf("Evaluating Transaction: ReadUser, ID: %s", id)
 		
-		evaluateResult, err := contract.EvaluateTransaction("ReadUser", id)
+		evaluateResult, err := contract.Contract.EvaluateTransaction("ReadUser", id)
+
 		if err != nil {
 			return c.Status(404).JSON(fiber.Map{"error": "User not found or error: " + err.Error()})
 		}

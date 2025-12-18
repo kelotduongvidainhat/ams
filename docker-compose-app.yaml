@@ -9,6 +9,7 @@ services:
       - CRYPTO_PATH=/crypto/peerOrganizations/org1.example.com
       - PEER_ENDPOINT=peer0.org1.example.com:7051
       - GATEWAY_PEER=peer0.org1.example.com
+      - POSTGRES_HOST=ams-postgres
     volumes:
       - ./network/organizations:/crypto
     ports:

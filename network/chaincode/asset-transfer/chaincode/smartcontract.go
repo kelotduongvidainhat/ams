@@ -122,8 +122,14 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, assetJSON)
+	err = ctx.GetStub().PutState(id, assetJSON)
+	if err != nil {
+		return err
+	}
+	// Emit Event for Sync
+	return ctx.GetStub().SetEvent("AssetCreated", assetJSON)
 }
+
 
 // ReadAsset returns the asset stored in the world state with given id.
 func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, id string) (*Asset, error) {
@@ -177,8 +183,13 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, assetJSON)
+	err = ctx.GetStub().PutState(id, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AssetUpdated", assetJSON)
 }
+
 
 // DeleteAsset deletes an given asset from the world state.
 func (s *SmartContract) DeleteAsset(ctx contractapi.TransactionContextInterface, id string) error {
@@ -190,8 +201,14 @@ func (s *SmartContract) DeleteAsset(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("the asset %s does not exist", id)
 	}
 
-	return ctx.GetStub().DelState(id)
+	err = ctx.GetStub().DelState(id)
+	if err != nil {
+		return err
+	}
+	// Event payload is just the ID for deletion
+	return ctx.GetStub().SetEvent("AssetDeleted", []byte(id))
 }
+
 
 // AssetExists returns true when asset with given ID exists in world state
 func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface, id string) (bool, error) {
@@ -223,8 +240,13 @@ func (s *SmartContract) GrantAccess(ctx contractapi.TransactionContextInterface,
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, assetJSON)
+	err = ctx.GetStub().PutState(id, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AccessGranted", assetJSON)
 }
+
 
 // RevokeAccess removes a viewer from the asset
 func (s *SmartContract) RevokeAccess(ctx contractapi.TransactionContextInterface, id string, viewerId string) error {
@@ -246,8 +268,13 @@ func (s *SmartContract) RevokeAccess(ctx contractapi.TransactionContextInterface
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, assetJSON)
+	err = ctx.GetStub().PutState(id, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AccessRevoked", assetJSON)
 }
+
 
 // TransferAsset updates the owner field of asset with given id in world state.
 func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterface, id string, newOwner string) error {
@@ -266,8 +293,13 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, assetJSON)
+	err = ctx.GetStub().PutState(id, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AssetTransferred", assetJSON)
 }
+
 
 // GetAllAssets returns all assets found in world state
 func (s *SmartContract) GetAllAssets(ctx contractapi.TransactionContextInterface) ([]*Asset, error) {
@@ -323,8 +355,13 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, userBytes)
+	err = ctx.GetStub().PutState(id, userBytes)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("UserCreated", userBytes)
 }
+
 
 // ReadUser returns the user stored in the world state with given id.
 func (s *SmartContract) ReadUser(ctx contractapi.TransactionContextInterface, id string) (*User, error) {
