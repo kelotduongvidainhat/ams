@@ -221,6 +221,17 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
     *   **History**: Timeline trực quan về lịch sử tài sản.
     *   *Documentation*: Xem chi tiết tại [frontend/README.md](frontend/README.md).
 
+#### **Giai đoạn 3: Nâng cấp Kiến trúc Hybrid (Planned)**
+*   **Mục tiêu**: Giải quyết bài toán hiệu năng truy vấn (Query Performance) và khả năng tìm kiếm nâng cao (Explorer).
+*   **Giải pháp (CQRS Pattern)**:
+    1.  **On-chain Query (CouchDB)**:
+        *   Thay thế LevelDB bằng **CouchDB** cho Fabric Peers.
+        *   Cho phép thực hiện **Rich Queries** (JSON Selectors) ngay trong Chaincode (VD: Lọc tài sản theo Owner/Viewer mà không cần Loop).
+    2.  **Off-chain Indexing (PostgreSQL)**:
+        *   Triển khai **PostgreSQL** làm cơ sở dữ liệu "Read Model".
+        *   Xây dựng dịch vụ **Block Listener** để lắng nghe sự kiện từ Chaincode và đồng bộ dữ liệu sang bảng SQL.
+        *   Phục vụ cho: **Public Explorer**, **Auditor Dashboard**, và các báo cáo thống kê phức tạp.
+
 ---
 
 ## �📚 Tài liệu tham khảo

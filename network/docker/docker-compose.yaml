@@ -130,6 +130,40 @@ services:
     networks:
       - fabric_network
 
+  couchdb0:
+    container_name: couchdb0
+    image: couchdb:3.3
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    networks:
+      - fabric_network
+
+  couchdb1:
+    container_name: couchdb1
+    image: couchdb:3.3
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "7984:5984"
+    networks:
+      - fabric_network
+
+  couchdb2:
+    container_name: couchdb2
+    image: couchdb:3.3
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "9984:5984"
+    networks:
+      - fabric_network
+
+
   peer0.org1.example.com:
     container_name: peer0.org1.example.com
     image: hyperledger/fabric-peer:2.5.9
@@ -155,7 +189,15 @@ services:
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0org1"}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fabric_network
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb0:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    depends_on:
+      - couchdb0
+
     volumes:
       - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/fabric/msp
@@ -194,7 +236,15 @@ services:
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org1"}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fabric_network
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb1:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    depends_on:
+      - couchdb1
+
     volumes:
       - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp:/etc/hyperledger/fabric/msp
@@ -233,7 +283,15 @@ services:
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer2org1"}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fabric_network
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb2:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    depends_on:
+      - couchdb2
+
     volumes:
       - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/msp:/etc/hyperledger/fabric/msp
