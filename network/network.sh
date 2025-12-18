@@ -33,6 +33,7 @@ function clearContainers() {
 function removeUnwantedImages() {
   echo "Removing chaincode images..."
   docker rmi -f $(docker images -q --filter=reference='dev-peer*') 2>/dev/null || true
+  docker rmi -f basic_image:latest 2>/dev/null || true
 }
 
 function networkDown() {
@@ -64,6 +65,7 @@ function networkUp() {
   # Create CA directories
   mkdir -p organizations/fabric-ca/org1
   mkdir -p organizations/fabric-ca/ordererOrg
+  mkdir -p channel-artifacts
 
   # Start CA servers
   echo "Starting Certificate Authorities..."

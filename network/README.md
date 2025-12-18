@@ -53,7 +53,35 @@ Lệnh này sẽ:
 - Tạo crypto material cho tất cả peers và orderers
 - Khởi động 3 orderers và 3 peers
 
-### 2. Tạo và join channel
+
+### 3. Mô hình Dữ liệu (Asset Structure)
+
+Smart Contract (`basic`) đã được cập nhật để hỗ trợ mô hình tài sản tổng quát cho thương mại:
+
+```go
+type Asset struct {
+    ID     string `json:"ID"`
+    Name   string `json:"name"`   // Ví dụ: "iPhone 15 Pro"
+    Type   string `json:"type"`   // Ví dụ: "Electronics", "RealEstate"
+    Owner  string `json:"owner"`  // Ví dụ: "Tomoko"
+    Value  int    `json:"value"`  // Giá trị định giá
+    Status string `json:"status"` // Ví dụ: "Available", "Sold"
+}
+```
+
+### 4. Vận hành & Kiểm thử
+
+#### Kiểm thử nhanh
+Sử dụng script `test_network.sh` để chạy kịch bản kiểm thử tự động (Query, Create, Transfer):
+
+```bash
+cd network
+./test_network.sh
+```
+
+#### Các lệnh thủ công
+
+### 5. Tạo và join channel
 
 ```bash
 ./network.sh createChannel -c mychannel
@@ -66,7 +94,7 @@ docker exec -e CORE_PEER_ADDRESS=peer1.org1.example.com:8051 cli peer channel jo
 docker exec -e CORE_PEER_ADDRESS=peer2.org1.example.com:9051 cli peer channel join -b ./channel-artifacts/mychannel.block
 ```
 
-### 3. Kiểm tra trạng thái mạng lưới
+### 6. Kiểm tra trạng thái mạng lưới
 
 ```bash
 chmod +x check-status.sh
