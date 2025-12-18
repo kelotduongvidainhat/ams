@@ -221,16 +221,22 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
     *   **History**: Timeline trực quan về lịch sử tài sản.
     *   *Documentation*: Xem chi tiết tại [frontend/README.md](frontend/README.md).
 
-#### **Giai đoạn 3: Nâng cấp Kiến trúc Hybrid (Planned)**
+#### **Giai đoạn 3: Nâng cấp Kiến trúc Hybrid ✅ Completed**
 *   **Mục tiêu**: Giải quyết bài toán hiệu năng truy vấn (Query Performance) và khả năng tìm kiếm nâng cao (Explorer).
-*   **Giải pháp (CQRS Pattern)**:
-    1.  **On-chain Query (CouchDB)**:
-        *   Thay thế LevelDB bằng **CouchDB** cho Fabric Peers.
-        *   Cho phép thực hiện **Rich Queries** (JSON Selectors) ngay trong Chaincode (VD: Lọc tài sản theo Owner/Viewer mà không cần Loop).
-    2.  **Off-chain Indexing (PostgreSQL)**:
-        *   Triển khai **PostgreSQL** làm cơ sở dữ liệu "Read Model".
-        *   Xây dựng dịch vụ **Block Listener** để lắng nghe sự kiện từ Chaincode và đồng bộ dữ liệu sang bảng SQL.
-        *   Phục vụ cho: **Public Explorer**, **Auditor Dashboard**, và các báo cáo thống kê phức tạp.
+*   **Kiến trúc Đã triển khai**:
+    1.  **On-chain (CouchDB)**:
+        *   Fabric Peers hiện sử dụng **CouchDB** thay vì LevelDB.
+        *   Hỗ trợ **Rich Queries** (JSON Selector) trong Chaincode.
+    2.  **Off-chain (PostgreSQL)**:
+        *   Database: `postgres:15-alpine` chạy trên cổng 5432.
+        *   Schema: Định nghĩa tại `database/schema.sql` (Assets, Users, History).
+    3.  **Sync Service (Block Listener)**:
+        *   Một dịch vụ chạy ngầm trong Backend (`backend/sync/listener.go`).
+        *   Lắng nghe sự kiện Chaincode (`AssetCreated`, `AssetUpdated`, `AssetTransferred`).
+        *   Tự động đồng bộ dữ liệu từ Ledger sang SQL trong thời gian thực (< 3s).
+    4.  **Lợi ích**:
+        *   Giảm tải cho Blockchain Gateway.
+        *   Cho phép thực hiện các truy vấn phức tạp (JOIN, Sort, Group By) phục vụ **Public Explorer**.
 
 ---
 
