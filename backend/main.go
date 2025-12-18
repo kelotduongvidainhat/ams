@@ -98,6 +98,56 @@ func main() {
 		})
 	})
 
+
+	// --- USER Management ---
+
+	// Register User
+	api.Post("/users", func(c *fiber.Ctx) error {
+		type UserRequest struct {
+			ID             string `json:"id"`
+			FullName       string `json:"full_name"`
+			IdentityNumber string `json:"identity_number"`
+			Role           string `json:"role"`
+		}
+
+		p := new(UserRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
+		
+		_, err := contract.SubmitTransaction("CreateUser", 
+			p.ID, 
+			p.FullName, 
+			p.IdentityNumber, 
+			p.Role, 
+		)
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to register user: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{
+			"message": "User registered successfully", 
+			"id": p.ID, 
+		})
+	})
+
+	// Get User Details
+	api.Get("/users/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		log.Printf("Evaluating Transaction: ReadUser, ID: %s", id)
+		
+		evaluateResult, err := contract.EvaluateTransaction("ReadUser", id)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "User not found or error: " + err.Error()})
+		}
+
+		c.Set("Content-Type", "application/json")
+		return c.Send(evaluateResult)
+	})
+
 	// Start server (Async)
 	log.Fatal(app.Listen(":3000"))
 }

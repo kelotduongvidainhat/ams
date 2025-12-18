@@ -1,6 +1,10 @@
 import { Share2, Plus } from 'lucide-react';
 
-export default function Navbar() {
+interface NavbarProps {
+    onCreateAsset: () => void;
+}
+
+export default function Navbar({ onCreateAsset }: NavbarProps) {
     return (
         <nav className="glass-panel sticky top-0 z-50 mb-8 border-b border-white/10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,7 +18,9 @@ export default function Navbar() {
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors shadow-lg shadow-blue-500/20 font-medium text-sm">
+                        <button
+                            onClick={onCreateAsset}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors shadow-lg shadow-blue-500/20 font-medium text-sm">
                             <Plus size={18} />
                             Create Asset
                         </button>

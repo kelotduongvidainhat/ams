@@ -25,9 +25,18 @@ type Asset struct {
 	Type   string `json:"type"`   // Category (e.g., "Electronics", "RealEstate")
 	Owner       string `json:"owner"`        // Current Owner
 	Value       int    `json:"value"`        // Monetary Value
-	Status      string `json:"status"`       // Status (e.g., "Available", "Sold", "Locked")
-	MetadataURL string `json:"metadata_url"` // External Metadata (e.g. IPFS hash)
+	Status       string `json:"status"`        // Status (e.g., "Available", "Sold", "Locked")
+	MetadataURL  string `json:"metadata_url"`  // External Metadata (e.g. IPFS hash)
 	MetadataHash string `json:"metadata_hash"` // Integrity Check (SHA-256)
+}
+
+// User describes the participant in the network
+type User struct {
+	ID             string `json:"id"`
+	FullName       string `json:"full_name"`
+	IdentityNumber string `json:"identity_number"` // CCCD/Passport
+	WalletAddress  string `json:"wallet_address"`  // Optional: For future non-custodial features
+	Role           string `json:"role"`            // Admin, User, Auditor
 }
 
 // InitLedger adds a base set of assets to the ledger
@@ -197,6 +206,51 @@ func (s *SmartContract) GetAllAssets(ctx contractapi.TransactionContextInterface
 		}
 		assets = append(assets, &asset)
 	}
-
 	return assets, nil
+}
+
+// CreateUser registers a new user in the system
+func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, id string, fullName string, identityNumber string, role string) error {
+	// Check if user already exists
+	userJSON, err := ctx.GetStub().GetState(id)
+	if err != nil {
+		return fmt.Errorf("failed to read from world state: %v", err)
+	}
+	if userJSON != nil {
+		return fmt.Errorf("the user %s already exists", id)
+	}
+
+	user := User{
+		ID:             id,
+		FullName:       fullName,
+		IdentityNumber: identityNumber,
+		Role:           role,
+		WalletAddress:  "", // Empty for now
+	}
+	
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	return ctx.GetStub().PutState(id, userBytes)
+}
+
+// ReadUser returns the user stored in the world state with given id.
+func (s *SmartContract) ReadUser(ctx contractapi.TransactionContextInterface, id string) (*User, error) {
+	userJSON, err := ctx.GetStub().GetState(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from world state: %v", err)
+	}
+	if userJSON == nil {
+		return nil, fmt.Errorf("the user %s does not exist", id)
+	}
+
+	var user User
+	err = json.Unmarshal(userJSON, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }

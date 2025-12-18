@@ -1,5 +1,5 @@
 {
-  "address": "basic_1.0:9999",
+  "address": "basic_2.0:9999",
   "dial_timeout": "10s",
   "tls_required": false
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Asset } from '../types';
+import type { Asset, User } from '../types';
 
 const api = axios.create({
     baseURL: '/api',
@@ -22,5 +22,17 @@ export const createAsset = async (asset: Partial<Asset>) => {
         // The backend POST expects: id, name, type...
         metadata_url: asset.metadata_url,
     });
+    return response.data;
+};
+
+// --- User API ---
+
+export const registerUser = async (user: User) => {
+    const response = await api.post('/users', user);
+    return response.data;
+};
+
+export const getUser = async (id: string): Promise<User> => {
+    const response = await api.get<User>(`/users/${id}`);
     return response.data;
 };
