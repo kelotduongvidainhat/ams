@@ -87,8 +87,36 @@ Hoặc chạy lệnh thủ công:
 ```bash
 docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
 ```
+### 6. Chạy ứng dụng với Docker (Containerization)
 
-## � Thiết kế Hệ thống Mở rộng (System Design Spec)
+Hệ thống hỗ trợ chạy Backend và Frontend trong Docker container, giúp triển khai dễ dàng và đồng nhất.
+
+**Bước 1: Khởi động mạng lưới (nếu chưa chạy)**
+```bash
+cd network
+./network.sh up createChannel -c mychannel
+./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
+```
+
+**Bước 2: Build và chạy ứng dụng**
+Tại thư mục gốc `ams/`:
+```bash
+docker-compose -f docker-compose-app.yaml up --build -d
+```
+
+**Bước 3: Truy cập**
+*   **Web App**: [http://localhost:5173](http://localhost:5173) (User: `user01` / `admin`)
+*   **Backend API**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+
+**Lưu ý:**
+*   Container Backend (`ams-backend`) tự động kết nối với mạng Fabric (`fabric_network`).
+*   Frontend sử dụng **Nginx Reverse Proxy**:
+    *   Route `/` -> Serve React App (Port 5173).
+    *   Route `/api` -> Proxy pass to `ams-backend:3000`.
+*   Nếu bạn đang chạy backend cục bộ (cổng 3000), hãy tắt nó trước khi chạy Docker để tránh xung đột cổng (`fuser -k 3000/tcp`).
+*   Volume `/crypto` được mount tự động từ thư mục `network/organizations`.
+
+##  Thiết kế Hệ thống Mở rộng (System Design Spec)
 
 Dưới đây là đặc tả mô hình dữ liệu cho các phiên bản phát triển tiếp theo:
 

@@ -13,17 +13,24 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const (
+var (
 	mspID        = "Org1MSP"
-	cryptoPath   = "/home/sleep/ams/network/organizations/peerOrganizations/org1.example.com"
+	cryptoPath   = getEnv("CRYPTO_PATH", "/home/sleep/ams/network/organizations/peerOrganizations/org1.example.com")
 	certPath     = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/cert.pem"
 	keyPath      = cryptoPath + "/users/User1@org1.example.com/msp/keystore"
 	tlsCertPath  = cryptoPath + "/tlsca/tlsca.org1.example.com-cert.pem"
-	peerEndpoint = "localhost:7051"
-	gatewayPeer  = "peer0.org1.example.com"
+	peerEndpoint = getEnv("PEER_ENDPOINT", "localhost:7051")
+	gatewayPeer  = getEnv("GATEWAY_PEER", "peer0.org1.example.com")
 	channelName  = "mychannel"
 	chaincodeName = "basic"
 )
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
 // InitContract initializes the Fabric Contract client
 func InitContract() (*client.Contract, error) {

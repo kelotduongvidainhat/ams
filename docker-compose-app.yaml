@@ -1,0 +1,32 @@
+version: '3.7'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: ams-backend
+    environment:
+      - CRYPTO_PATH=/crypto/peerOrganizations/org1.example.com
+      - PEER_ENDPOINT=peer0.org1.example.com:7051
+      - GATEWAY_PEER=peer0.org1.example.com
+    volumes:
+      - ./network/organizations:/crypto
+    ports:
+      - "3000:3000"
+    networks:
+      - fabric_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ams-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - fabric_network
+    depends_on:
+      - backend
+
+networks:
+  fabric_network:
+    external: true
