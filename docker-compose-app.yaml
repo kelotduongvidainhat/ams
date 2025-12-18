@@ -27,6 +27,24 @@ services:
     depends_on:
       - backend
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: ams-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=ams_user
+      - POSTGRES_PASSWORD=ams_password
+      - POSTGRES_DB=ams_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - fabric_network
+
+volumes:
+  pgdata:
+
 networks:
   fabric_network:
     external: true
