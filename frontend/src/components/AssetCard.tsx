@@ -79,29 +79,39 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                 )}
 
                 <div className="grid grid-cols-3 gap-2 mt-2">
-                    <button
-                        onClick={() => onTransfer(asset)}
-                        disabled={!isOwner}
-                        className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all ${isOwner
-                                ? 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/20 cursor-pointer'
-                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
-                            }`}>
-                        Transfer
-                    </button>
-                    <button
-                        onClick={() => onShare(asset)}
-                        disabled={!isOwner}
-                        className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 ${isOwner
-                                ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 cursor-pointer'
-                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
-                            }`}>
-                        <Eye size={14} /> Share
-                    </button>
-                    <button
-                        onClick={() => onHistory(asset)}
-                        className="py-2 px-1 rounded-lg bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-semibold uppercase tracking-wide border border-slate-600/50 transition-all">
-                        History
-                    </button>
+                    {currentUser.role === 'Auditor' ? (
+                        <button
+                            onClick={() => onHistory(asset)}
+                            className="col-span-3 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold uppercase tracking-wide transition-all flex items-center justify-center gap-2">
+                            <ShieldCheck size={16} /> Verify & Audit History
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => onTransfer(asset)}
+                                disabled={!isOwner}
+                                className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all ${isOwner
+                                        ? 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/20 cursor-pointer'
+                                        : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                                    }`}>
+                                Transfer
+                            </button>
+                            <button
+                                onClick={() => onShare(asset)}
+                                disabled={!isOwner}
+                                className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 ${isOwner
+                                        ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 cursor-pointer'
+                                        : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                                    }`}>
+                                <Eye size={14} /> Share
+                            </button>
+                            <button
+                                onClick={() => onHistory(asset)}
+                                className="py-2 px-1 rounded-lg bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-semibold uppercase tracking-wide border border-slate-600/50 transition-all">
+                                History
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

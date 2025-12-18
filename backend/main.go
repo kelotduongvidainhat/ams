@@ -81,13 +81,11 @@ func main() {
             }
             
             // Check Access
-            if userRole == "Admin" || owner == userId || isViewer {
+            if userRole == "Admin" {
+                 visibleAssets = append(visibleAssets, asset)
+            } else if owner == userId || isViewer {
                  visibleAssets = append(visibleAssets, asset)
             }
-            // For Auditor, they might see specific ones or all if they are Admin-like. 
-            // Requirement says "Auditor viewing... compliance". Let's assume they act like Viewers unless granted specific access.
-            // If Auditor needs to see ALL, uncomment below:
-            // if userRole == "Auditor" { visibleAssets = append(visibleAssets, asset); continue }
         }
 
 		return c.JSON(visibleAssets)
