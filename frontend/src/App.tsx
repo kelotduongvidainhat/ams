@@ -7,23 +7,31 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   return (
-    <div className="min-h-screen">
-      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      {/* Animated Background */}
+      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
+      {/* Gradient Orbs */}
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+
+      {/* Main Content */}
       <div className="relative z-10">
         <main>
           {currentUser ? (
             <Dashboard currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
           ) : (
-            <div className="relative">
-              <AuthPage onLogin={(user) => setCurrentUser(user)} />
-            </div>
+            <AuthPage onLogin={(user) => setCurrentUser(user)} />
           )}
         </main>
       </div>
 
+      {/* Footer */}
       <footer className="relative z-10 mt-20 border-t border-white/5 py-8 text-center text-slate-500 text-sm">
-        <p>&copy; 2025 AMS Blockchain. Secured by Hyperledger Fabric.</p>
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+          <p>&copy; 2025 AMS Blockchain. Secured by Hyperledger Fabric.</p>
+        </div>
       </footer>
     </div>
   );

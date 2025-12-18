@@ -60,3 +60,30 @@ export const transferAsset = async (id: string, newOwner: string) => {
     const response = await api.put(`/assets/${id}/transfer`, { new_owner: newOwner });
     return response.data;
 };
+
+// --- Explorer API (Postgres) ---
+export const searchAssets = async (query: string, owner?: string, type?: string): Promise<Asset[]> => {
+    const params = new URLSearchParams();
+    if (query) params.append('search', query);
+    if (owner) params.append('owner', owner);
+    if (type) params.append('type', type);
+
+    const response = await api.get<Asset[]>(`/explorer/assets?${params.toString()}`);
+    return response.data;
+};
+
+export interface Transaction {
+    tx_id: string;
+    asset_id: string;
+    asset_name: string;
+    asset_type: string;
+    action_type: string;
+    to_owner: string;
+    value: number;
+    timestamp: string;
+}
+
+export const getRecentTransactions = async (): Promise<Transaction[]> => {
+    const response = await api.get<Transaction[]>('/explorer/transactions');
+    return response.data;
+};

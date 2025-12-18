@@ -56,3 +56,4 @@ CREATE TABLE IF NOT EXISTS asset_history (
 -- Index for History Lookups
 CREATE INDEX idx_history_asset_id ON asset_history(asset_id);
 CREATE INDEX idx_history_tx_id ON asset_history(tx_id);
+CREATE INDEX idx_history_timestamp ON asset_history(timestamp DESC); -- For recent transaction queries

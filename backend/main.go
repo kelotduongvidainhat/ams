@@ -59,6 +59,132 @@ func main() {
 	}
 
 
+	// Public Explorer Endpoint (PostgreSQL)
+	if pgDB != nil {
+		api.Get("/explorer/assets", func(c *fiber.Ctx) error {
+			search := c.Query("search")
+			owner := c.Query("owner")
+			itemType := c.Query("type")
+
+			log.Printf("🔎 Explorer Query - Search: %s, Owner: %s, Type: %s", search, owner, itemType)
+
+			// Build Query
+			q := "SELECT id, name, asset_type, owner, value, status, metadata_url, last_tx_id FROM assets WHERE 1=1"
+			args := []interface{}{}
+			argId := 1
+
+			if search != "" {
+				q += fmt.Sprintf(" AND name ILIKE $%d", argId)
+				args = append(args, "%"+search+"%")
+				argId++
+			}
+			if owner != "" {
+				q += fmt.Sprintf(" AND owner = $%d", argId)
+				args = append(args, owner)
+				argId++
+			}
+			if itemType != "" {
+				q += fmt.Sprintf(" AND asset_type = $%d", argId)
+				args = append(args, itemType)
+				argId++
+			}
+
+			q += " ORDER BY updated_at DESC LIMIT 50"
+
+			rows, err := pgDB.Query(q, args...)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Database query failed: " + err.Error()})
+			}
+			defer rows.Close()
+
+			var results []map[string]interface{}
+			for rows.Next() {
+				var r struct {
+					ID          string
+					Name        string
+					Type        string
+					Owner       string
+					Value       int
+					Status      string
+					MetadataURL string
+					LastTxID    string
+				}
+				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Value, &r.Status, &r.MetadataURL, &r.LastTxID); err != nil {
+					continue
+				}
+				results = append(results, map[string]interface{}{
+					"id": r.ID, "name": r.Name, "type": r.Type, "owner": r.Owner, 
+					"value": r.Value, "status": r.Status, "metadata_url": r.MetadataURL, "last_tx_id": r.LastTxID,
+				})
+			}
+			
+			if results == nil {
+				results = []map[string]interface{}{}
+			}
+
+			return c.JSON(results)
+		})
+
+		// Public Transaction History Endpoint (Last 24 hours)
+		api.Get("/explorer/transactions", func(c *fiber.Ctx) error {
+			log.Println("🕐 Fetching last 24h transaction history from PostgreSQL")
+
+			query := `
+				SELECT 
+					h.tx_id,
+					h.asset_id,
+					h.action_type,
+					h.to_owner,
+					h.timestamp,
+					a.name as asset_name,
+					a.asset_type,
+					a.value
+				FROM asset_history h
+				LEFT JOIN assets a ON h.asset_id = a.id
+				WHERE h.timestamp >= NOW() - INTERVAL '24 hours'
+				ORDER BY h.timestamp DESC
+				LIMIT 100
+			`
+
+			rows, err := pgDB.Query(query)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transaction history: " + err.Error()})
+			}
+			defer rows.Close()
+
+			var transactions []map[string]interface{}
+			for rows.Next() {
+				var txID, assetID, actionType, toOwner, assetName, assetType string
+				var timestamp string
+				var value int
+
+				err := rows.Scan(&txID, &assetID, &actionType, &toOwner, &timestamp, &assetName, &assetType, &value)
+				if err != nil {
+					log.Printf("Error scanning transaction row: %v", err)
+					continue
+				}
+
+				transactions = append(transactions, map[string]interface{}{
+					"tx_id":       txID,
+					"asset_id":    assetID,
+					"asset_name":  assetName,
+					"asset_type":  assetType,
+					"action_type": actionType,
+					"to_owner":    toOwner,
+					"value":       value,
+					"timestamp":   timestamp,
+				})
+			}
+
+			if transactions == nil {
+				transactions = []map[string]interface{}{}
+			}
+
+			log.Printf("✅ Returned %d transactions from last 24h", len(transactions))
+			return c.JSON(transactions)
+		})
+	}
+
 	// Health Check
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
