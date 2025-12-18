@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
+import type { User } from './types';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   return (
     <div className="min-h-screen">
@@ -11,19 +12,11 @@ function App() {
 
       <div className="relative z-10">
         <main>
-          {isAuthenticated ? (
-            <Dashboard />
+          {currentUser ? (
+            <Dashboard currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
           ) : (
-            // Pass a callback to simulate login success (in real app, use Context/Redux)
-            // We are hacking the internal state of AuthPage via a prop doesn't work well without changing AuthPage signature.
-            // Let's just wrap it or assume user logs in.
-            // Actually, AuthPage doesn't accept props yet. Let's just modify the view based on a simple "Continue" for now, 
-            // OR better: modify AuthPage to accept onLoginSuccess callback. 
-            // For simplicity in this demo step: creating a wrapper here is overkill.
-            // Let's just SHOW AuthPage.             // To make it functional, I should update AuthPage.tsx to accept props.
             <div className="relative">
-              {/* Temporary overlay to simulate navigation hack for the demo */}
-              <AuthPage onLogin={() => setIsAuthenticated(true)} />
+              <AuthPage onLogin={(user) => setCurrentUser(user)} />
             </div>
           )}
         </main>

@@ -1,16 +1,19 @@
 
 import { useState } from 'react';
 import { registerUser, getUser } from '../services/api';
-import { User, Lock, UserPlus, Fingerprint, Activity, LogIn } from 'lucide-react';
+import { User as UserIcon, Lock, UserPlus, Fingerprint, Activity, LogIn } from 'lucide-react';
+
+import type { User } from '../types';
 
 interface AuthPageProps {
-    onLogin: () => void;
+    onLogin: (user: User) => void;
 }
 
 export default function AuthPage({ onLogin }: AuthPageProps) {
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+    const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -35,19 +38,21 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                 const user = await getUser(formData.id);
                 if (user && user.id) {
                     setMsg({ type: 'success', text: `Welcome back, ${user.full_name} (${user.role})!` });
-                    // In a real app, you would save token/user to context/localstorage here
+                    setAuthenticatedUser(user);
                 }
             } else {
                 // Register
-                await registerUser({
+                const newUser = {
                     id: formData.id,
                     full_name: formData.fullName,
                     identity_number: formData.identityNumber,
                     role: formData.role
-                });
+                };
+                await registerUser(newUser);
                 setMsg({ type: 'success', text: 'Account registered onto Blockchain successfully!' });
-                // Switch to login
-                // setTimeout(() => { onLogin(); }, 2000);
+
+                // For simplicity, auto-login after register in this demo flow? 
+                // Or just ask them to login. Let's make them switch to login.
             }
         } catch (err: any) {
             console.error(err);
@@ -73,7 +78,7 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                     </p>
 
                     {msg && (
-                        <div className={`mb - 6 p - 4 rounded - lg flex items - start gap - 3 text - sm ${msg.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 text-sm ${msg.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
                             : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             } `}>
                             <Activity size={18} className="shrink-0 mt-0.5" />
@@ -81,9 +86,9 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                         </div>
                     )}
 
-                    {msg?.type === 'success' && isLogin && (
+                    {msg?.type === 'success' && isLogin && authenticatedUser && (
                         <button
-                            onClick={onLogin}
+                            onClick={() => onLogin(authenticatedUser)}
                             className="w-full mb-6 py-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg font-bold hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2"
                         >
                             go to dashboard <Activity size={18} />
@@ -94,7 +99,7 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">User ID</label>
                             <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                                 <input
                                     name="id" value={formData.id} onChange={handleChange}
                                     type="text" required placeholder="e.g. user01"

@@ -132,66 +132,66 @@ Lưu trữ lịch sử thay đổi chủ sở hữu và chứng thực.
     *   `blockchain_status`: Trạng thái (Pending, Confirmed, Failed).
     *   `smart_contract_address`: Địa chỉ hợp đồng thực thi.
 
-### 4. Chiến lược Dữ liệu (Data Strategy: On-chain vs Off-chain)
+### 4. Quản lý Quyền truy cập & Bảo mật (Access Control & Security)
+Hệ thống sử dụng mô hình kết hợp **RBAC** (Role-Based) và **ABAC** (Attribute-Based) để kiểm soát quyền truy cập tài sản.
+
+*   **Role-Based (Vai trò):**
+    *   `Admin`: Có quyền xem **toàn bộ** tài sản và giao dịch trên mạng lưới.
+    *   `Owner`: Có quyền xem, chuyển nhượng (Transfer) và chia sẻ (Grant Access) tài sản mình sở hữu.
+    *   `Auditor`: Có quyền xem lịch sử giao dịch để kiểm toán (Compliance).
+    *   `Viewer`: Người dùng được cấp quyền xem tài sản cụ thể.
+
+*   **Attribute-Based (Thuộc tính):**
+    *   Mỗi tài sản có danh sách `viewers`: Danh sách UserID được phép xem.
+    *   Cơ chế **Private by Default**: Tài sản khi tạo mới chỉ Owner nhìn thấy.
+
+### 5. Truy xuất Nguồn gốc (Asset Provenance)
+Lưu trữ toàn bộ lịch sử vòng đời của tài sản (Chain of Custody).
+
+*   **History Records**:
+    *   Mỗi bản ghi chứa: `TxID`, `Timestamp`, `Asset State Snapshot`.
+    *   Cho phép người dùng xem lại quá trình chuyển nhượng: Từ ai -> Sang ai -> Vào lúc nào.
+
+### 6. Chiến lược Dữ liệu (Data Strategy: On-chain vs Off-chain)
 
 Để tối ưu hóa hiệu năng và đảm bảo tính toàn vẹn, hệ thống phân chia dữ liệu như sau:
 
 | Loại Dữ liệu | Vị trí Lưu trữ | Chi tiết | Lý do |
 | :--- | :--- | :--- | :--- |
-| **Định danh & Trạng thái** | **On-chain** | `asset_id`, `owner`, `status`, `asset_type` | Cần thiết cho logic xác thực giao dịch (Validation Logic) của Chaincode. |
+| **Định danh & Trạng thái** | **On-chain** | `asset_id`, `docType`, `owner`, `status` | Cần thiết cho logic xác thực giao dịch (Validation Logic) của Chaincode. |
+| **Quyền truy cập** | **On-chain** | `viewers` (Array) | Kiểm soát ai được phép Query dữ liệu (World State Read). |
 | **Bằng chứng xác thực** | **On-chain** | `metadata_hash` (SHA-256) | Đảm bảo dữ liệu Off-chain không bị sửa đổi trái phép. |
-| **Lịch sử Giao dịch** | **On-chain** | `tx_id`, `timestamp`, `from/to` | Truy xuất nguồn gốc (Provenance) và kiểm toán. |
-| **Nội dung Chi tiết** | **Off-chain** | Hình ảnh, Video, Tài liệu PDF, Mô tả dài | Giảm tải cho Ledger, tiết kiệm tài nguyên mạng. |
-| **Dữ liệu Nhạy cảm** | **Off-chain** | Thông tin cá nhân chi tiết (PII) | Tuân thủ quyền riêng tư (GDPR), chỉ lưu Hash trên chain. |
+| **Lịch sử Giao dịch** | **On-chain** | `tx_id`, `timestamp`, `history` | Truy xuất nguồn gốc (Provenance) và kiểm toán. |
+| **Nội dung Chi tiết** | **Off-chain** | Hình ảnh, Video, Tài liệu PDF | Giảm tải cho Ledger, tiết kiệm tài nguyên mạng. |
 
-> **Cơ chế hoạt động:**
-> 1.  Dữ liệu chi tiết được upload lên Off-chain Storage (IPFS/S3).
-> 2.  Hệ thống lấy URL và tạo Hash của dữ liệu đó.
-> 3.  Gửi giao dịch lên Blockchain chứa: `ID`, `Owner`, `URL`, `Hash`.
-> 4.  Khi cần kiểm tra, Client tải dữ liệu từ URL, hash lại và so sánh với Hash trên On-chain.
-
-### 5. Tại sao cần `metadata_hash` và Cách tạo?
+### 7. Tại sao cần `metadata_hash` và Cách tạo?
 
 **Q: Tại sao cần lưu Hash trên On-chain khi đã có URL?**
 **A:** Để đảm bảo tính toàn vẹn (Data Integrity).
 *   **Vấn đề:** Dữ liệu tại `metadata_url` (nằm Off-chain) có thể bị hacker hoặc admin hệ thống âm thầm sửa đổi.
 *   **Giải pháp:** `metadata_hash` đóng vai trò như "dấu vân tay" kỹ thuật số bất biến trên Blockchain.
-    *   Nếu nội dung file Off-chain bị sửa dù chỉ 1 dấu phẩy, Hash mới sẽ **KHÁC** Hash lưu trên Chain.
-    *   Người dùng sẽ phát hiện ngay dữ liệu đã bị làm giả.
 
-**Q: Cách tạo `metadata_hash` như thế nào?**
-Sử dụng thuật toán **SHA-256** (tiêu chuẩn công nghiệp).
+### 8. Lộ trình Phát triển (Development Roadmap)
 
-**Ví dụ minh họa:**
-1.  Giả sử nội dung file `asset_detail.json`:
-    ```json
-    {
-      "color": "red",
-      "model": "2024"
-    }
-    ```
-2.  Tạo Hash (SHA-256):
-    *   **Linux/Mac**: `sha256sum asset_detail.json` hoặc `echo -n '{"color": "red",...}' | shasum -a 256`
-    *   **Kết quả**: `a3b4c5...` (chuỗi 64 ký tự hex)
-3.  Lưu chuỗi `a3b4c5...` này vào trường `metadata_hash` trong Chaincode.
-
-### 6. Lộ trình Phát triển (Next Steps)
-
-Hệ thống Blockchain Core đã hoàn thiện. Các bước tiếp theo tập trung vào xây dựng ứng dụng (Application Layer):
+Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
 
 #### **Giai đoạn 1: Backend API Gateway (Golang) ✅ Completed**
-*   **Mục tiêu**: Cung cấp RESTful API cho Frontend, ẩn đi sự phức tạp của Blockchain.
-*   **Stack**: Golang + Fabric SDK Go + Fiber/Gin Web Framework.
-*   **Chức năng chính**:
-    *   `POST /api/assets`: Upload file (lưu Local/S3) -> Hash SHA-256 -> Submit Transaction lên Blockchain.
-    *   `GET /api/assets/:id`: Query dữ liệu từ Blockchain + Load file từ URL Off-chain.
+*   **Mục tiêu**: Cung cấp RESTful API bảo mật.
+*   **Chức năng**:
+    *   `GET /api/assets?user_id=...`: Lọc tài sản theo quyền hạn (Admin/Owner/Viewer).
+    *   `POST /api/assets/:id/access`: Cấp quyền xem (Grant Access).
+    *   `GET /api/assets/:id/history`: Truy xuất lịch sử.
     *   *Documentation*: Xem chi tiết tại [backend/README.md](backend/README.md).
 
 #### **Giai đoạn 2: Frontend Web App ✅ Completed**
-*   **Mục tiêu**: Giao diện người dùng hiện đại, trực quan.
-*   **Stack**: ReactJS (Vite) hoặc Next.js.
-*   **Aesthetics**: Dashboard quản lý tài sản, hiển thị minh bạch Hash On-chain vs Hash thực tế.
-*   *Documentation*: Xem chi tiết tại [frontend/README.md](frontend/README.md).
+*   **Mục tiêu**: Giao diện người dùng trực quan.
+*   **Chức năng**:
+    *   **Login Flow**: Đăng nhập với UserID (Simulation).
+    *   **Dashboard**: Hiển thị tài sản với chỉ báo quyền sở hữu `(You)`.
+    *   **Transfer**: Chuyển nhượng tài sản (chỉ Owner).
+    *   **Sharing**: Chia sẻ quyền xem cho user khác.
+    *   **History**: Timeline trực quan về lịch sử tài sản.
+    *   *Documentation*: Xem chi tiết tại [frontend/README.md](frontend/README.md).
 
 ---
 

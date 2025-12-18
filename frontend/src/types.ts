@@ -16,3 +16,10 @@ export interface User {
     role: string;
     wallet_address?: string;
 }
+
+export interface AssetHistory {
+    txId: string;
+    timestamp: string;
+    record: Asset;
+    isDelete: boolean;
+}

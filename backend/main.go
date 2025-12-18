@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -39,17 +40,57 @@ func main() {
 		})
 	})
 
-	// Get All Assets
+	// Get All Assets (Filtered by User Access)
 	api.Get("/assets", func(c *fiber.Ctx) error {
-		log.Println("Evaluating Transaction: GetAllAssets")
+        // In a real app, these would come from the JWT Token in Context
+		userId := c.Query("user_id")
+		userRole := c.Query("user_role")
+
+		log.Printf("Evaluating Transaction: GetAllAssets for User: %s (%s)", userId, userRole)
 		evaluateResult, err := contract.EvaluateTransaction("GetAllAssets")
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		
-		// Return raw JSON from chaincode
-		c.Set("Content-Type", "application/json")
-		return c.Send(evaluateResult)
+		// Decode the filtered result in Backend (since Chaincode returns ALL)
+        // Note: For large datasets, this filtering MUST move to Chaincode (GetAssetsForUser).
+        // For Filter 4.0 MVP, we do it here.
+        var allAssets []map[string]interface{}
+        if err := json.Unmarshal(evaluateResult, &allAssets); err != nil {
+             return c.Status(500).JSON(fiber.Map{"error": "Failed to parse chaincode response"})
+        }
+
+        var visibleAssets []map[string]interface{}
+        for _, asset := range allAssets {
+            // Logic: 
+            // 1. Admin sees everything
+            // 2. Owner sees their assets
+            // 3. Viewers list contains userId OR "EVERYONE"
+            
+            owner, _ := asset["owner"].(string)
+            viewersInterface, ok := asset["viewers"].([]interface{})
+            
+            isViewer := false
+            if ok {
+                for _, v := range viewersInterface {
+                    if s, ok := v.(string); ok && (s == userId || s == "EVERYONE") {
+                        isViewer = true
+                        break
+                    }
+                }
+            }
+            
+            // Check Access
+            if userRole == "Admin" || owner == userId || isViewer {
+                 visibleAssets = append(visibleAssets, asset)
+            }
+            // For Auditor, they might see specific ones or all if they are Admin-like. 
+            // Requirement says "Auditor viewing... compliance". Let's assume they act like Viewers unless granted specific access.
+            // If Auditor needs to see ALL, uncomment below:
+            // if userRole == "Auditor" { visibleAssets = append(visibleAssets, asset); continue }
+        }
+
+		return c.JSON(visibleAssets)
 	})
 
 	// Create Asset
@@ -98,6 +139,61 @@ func main() {
 		})
 	})
 
+
+	// Get Asset History
+	api.Get("/assets/:id/history", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		log.Printf("Evaluating Transaction: GetAssetHistory, ID: %s", id)
+
+		evaluateResult, err := contract.EvaluateTransaction("GetAssetHistory", id)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		c.Set("Content-Type", "application/json")
+		return c.Send(evaluateResult)
+	})
+
+	// Transfer Asset
+	api.Put("/assets/:id/transfer", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		type TransferRequest struct {
+			NewOwner string `json:"new_owner"`
+		}
+		p := new(TransferRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("Submitting Transaction: TransferAsset, ID: %s to %s", id, p.NewOwner)
+		_, err := contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to transfer asset: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{"message": "Asset transferred successfully"})
+	})
+
+
+	// Grant Access
+	api.Post("/assets/:id/access", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		type AccessRequest struct {
+			ViewerID string `json:"viewer_id"`
+		}
+		p := new(AccessRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("Submitting Transaction: GrantAccess for Asset %s to %s", id, p.ViewerID)
+		_, err := contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to grant access: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{"message": "Access granted successfully"})
+	})
 
 	// --- USER Management ---
 

@@ -1,11 +1,15 @@
-import type { Asset } from '../types';
-import { ShieldCheck, User, Box, Tag, DollarSign, ExternalLink } from 'lucide-react';
+import type { Asset, User } from '../types';
+import { ShieldCheck, User as UserIcon, Box, Tag, DollarSign, ExternalLink, Eye } from 'lucide-react';
 
 interface AssetCardProps {
     asset: Asset;
+    currentUser: User;
+    onTransfer: (asset: Asset) => void;
+    onHistory: (asset: Asset) => void;
+    onShare: (asset: Asset) => void;
 }
 
-export default function AssetCard({ asset }: AssetCardProps) {
+export default function AssetCard({ asset, currentUser, onTransfer, onHistory, onShare }: AssetCardProps) {
     const statusColors: Record<string, string> = {
         'Available': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         'Sold': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -14,6 +18,7 @@ export default function AssetCard({ asset }: AssetCardProps) {
     };
 
     const statusClass = statusColors[asset.status] || 'bg-slate-700 text-slate-300';
+    const isOwner = asset.owner === currentUser.id;
 
     return (
         <div className="glass-panel rounded-xl p-5 hover:border-blue-500/30 transition-all duration-300 group">
@@ -41,9 +46,11 @@ export default function AssetCard({ asset }: AssetCardProps) {
                 </div>
                 <div className="flex items-center justify-between text-sm text-slate-400">
                     <div className="flex items-center gap-2">
-                        <User size={14} /> <span>Owner</span>
+                        <UserIcon size={14} /> <span>Owner</span>
                     </div>
-                    <span className="text-slate-200">{asset.owner}</span>
+                    <span className={`text-slate-200 ${isOwner ? 'font-bold text-blue-400' : ''}`}>
+                        {asset.owner} {isOwner && '(You)'}
+                    </span>
                 </div>
                 <div className="flex items-center justify-between text-sm text-slate-400">
                     <div className="flex items-center gap-2">
@@ -70,6 +77,32 @@ export default function AssetCard({ asset }: AssetCardProps) {
                         View Metadata <ExternalLink size={14} />
                     </a>
                 )}
+
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                    <button
+                        onClick={() => onTransfer(asset)}
+                        disabled={!isOwner}
+                        className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all ${isOwner
+                                ? 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/20 cursor-pointer'
+                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                            }`}>
+                        Transfer
+                    </button>
+                    <button
+                        onClick={() => onShare(asset)}
+                        disabled={!isOwner}
+                        className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 ${isOwner
+                                ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 cursor-pointer'
+                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                            }`}>
+                        <Eye size={14} /> Share
+                    </button>
+                    <button
+                        onClick={() => onHistory(asset)}
+                        className="py-2 px-1 rounded-lg bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-semibold uppercase tracking-wide border border-slate-600/50 transition-all">
+                        History
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { createAsset } from '../services/api';
-import { X, Save, Loader2, Tag, DollarSign, Box, Link } from 'lucide-react';
+import type { User } from '../types';
+import { X, Box, Tag, DollarSign, Link, Loader2, Save } from 'lucide-react';
 
 interface CreateAssetModalProps {
     onClose: () => void;
     onSuccess: () => void;
+    currentUser: User;
 }
 
-export default function CreateAssetModal({ onClose, onSuccess }: CreateAssetModalProps) {
+export default function CreateAssetModal({ onClose, onSuccess, currentUser }: CreateAssetModalProps) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        id: '',
+        id: `asset${Math.floor(Math.random() * 10000)}`,
         name: '',
         type: 'Electronics',
-        owner: '',
+        owner: currentUser.id, // Auto-fill
         value: 0,
         status: 'Available',
         metadata_url: ''
