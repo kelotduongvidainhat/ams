@@ -70,7 +70,7 @@ export default function HistoryModal({ assetId, onClose }: HistoryModalProps) {
                                             <div className="w-px h-8 bg-slate-700 mx-2"></div>
                                             <div className="flex flex-col">
                                                 <span className="text-slate-400 text-xs uppercase">Value</span>
-                                                <span>${record.record.value.toLocaleString()}</span>
+                                                <span>${(record.record.value || 0).toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </div>

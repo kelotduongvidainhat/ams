@@ -25,7 +25,6 @@ type Asset struct {
 	Name         string   `json:"name"`   // Product Name (e.g., "MacBook Pro")
 	Type         string   `json:"type"`   // Category (e.g., "Electronics", "RealEstate")
 	Owner        string   `json:"owner"`        // Current Owner
-	Value        int      `json:"value"`        // Monetary Value
 	Status       string   `json:"status"`        // Status (e.g., "Available", "Sold", "Locked")
 	MetadataURL  string   `json:"metadata_url"`  // External Metadata (e.g. IPFS hash)
 	MetadataHash string   `json:"metadata_hash"` // Integrity Check (SHA-256)
@@ -53,12 +52,12 @@ type HistoryQueryResult struct {
 // InitLedger adds a base set of assets to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	assets := []Asset{
-		{DocType: "asset", ID: "asset1", Name: "iPhone 15 Pro", Type: "Electronics", Owner: "Tomoko", Value: 1000, Status: "Available", MetadataURL: "http://example.com/asset1.json", MetadataHash: "hash_asset1", Viewers: []string{"EVERYONE"}},
-		{DocType: "asset", ID: "asset2", Name: "Tesla Model S", Type: "Vehicle", Owner: "Brad", Value: 80000, Status: "Available", MetadataURL: "http://example.com/asset2.json", MetadataHash: "hash_asset2", Viewers: []string{}},
-		{DocType: "asset", ID: "asset3", Name: "Penthouse Suite", Type: "RealEstate", Owner: "Jin Soo", Value: 500000, Status: "Owned", MetadataURL: "http://example.com/asset3.json", MetadataHash: "hash_asset3", Viewers: []string{"Auditor"}},
-		{DocType: "asset", ID: "asset4", Name: "Gold Bar 1kg", Type: "PreciousMetal", Owner: "Max", Value: 65000, Status: "Locked", MetadataURL: "http://example.com/asset4.json", MetadataHash: "hash_asset4", Viewers: []string{}},
-		{DocType: "asset", ID: "asset5", Name: "Antique Vase", Type: "Art", Owner: "Adriana", Value: 5000, Status: "Available", MetadataURL: "http://example.com/asset5.json", MetadataHash: "hash_asset5", Viewers: []string{"Tomoko"}},
-		{DocType: "asset", ID: "asset6", Name: "Bitcoin", Type: "Crypto", Owner: "Michel", Value: 45000, Status: "Available", MetadataURL: "http://example.com/asset6.json", MetadataHash: "hash_asset6", Viewers: []string{"EVERYONE"}},
+		{DocType: "asset", ID: "asset1", Name: "iPhone 15 Pro", Type: "Electronics", Owner: "Tomoko", Status: "Available", MetadataURL: "http://example.com/asset1.json", MetadataHash: "hash_asset1", Viewers: []string{"EVERYONE"}},
+		{DocType: "asset", ID: "asset2", Name: "Tesla Model S", Type: "Vehicle", Owner: "Brad", Status: "Available", MetadataURL: "http://example.com/asset2.json", MetadataHash: "hash_asset2", Viewers: []string{}},
+		{DocType: "asset", ID: "asset3", Name: "Penthouse Suite", Type: "RealEstate", Owner: "Jin Soo", Status: "Owned", MetadataURL: "http://example.com/asset3.json", MetadataHash: "hash_asset3", Viewers: []string{"Auditor"}},
+		{DocType: "asset", ID: "asset4", Name: "Gold Bar 1kg", Type: "PreciousMetal", Owner: "Max", Status: "Locked", MetadataURL: "http://example.com/asset4.json", MetadataHash: "hash_asset4", Viewers: []string{}},
+		{DocType: "asset", ID: "asset5", Name: "Antique Vase", Type: "Art", Owner: "Adriana", Status: "Available", MetadataURL: "http://example.com/asset5.json", MetadataHash: "hash_asset5", Viewers: []string{"Tomoko"}},
+		{DocType: "asset", ID: "asset6", Name: "Bitcoin", Type: "Crypto", Owner: "Michel", Status: "Available", MetadataURL: "http://example.com/asset6.json", MetadataHash: "hash_asset6", Viewers: []string{"EVERYONE"}},
 	}
 
 	for _, asset := range assets {
@@ -96,7 +95,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 }
 
 // CreateAsset issues a new asset to the world state with given details.
-func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, value int, status string, metadataUrl string, metadataHash string) error {
+func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, status string, metadataUrl string, metadataHash string) error {
 	exists, err := s.AssetExists(ctx, id)
 	if err != nil {
 		return err
@@ -111,7 +110,6 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		Name:         name,
 		Type:         assetType,
 		Owner:        owner,
-		Value:        value,
 		Status:       status,
 		MetadataURL:  metadataUrl,
 		MetadataHash: metadataHash,
@@ -151,7 +149,7 @@ func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, i
 }
 
 // UpdateAsset updates an existing asset in the world state with provided parameters.
-func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, value int, status string, metadataUrl string, metadataHash string) error {
+func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface, id string, name string, assetType string, owner string, status string, metadataUrl string, metadataHash string) error {
 	exists, err := s.AssetExists(ctx, id)
 	if err != nil {
 		return err
@@ -172,7 +170,6 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 		Name:         name,
 		Type:         assetType,
 		Owner:        owner,
-		Value:        value,
 		Status:       status,
 		MetadataURL:  metadataUrl,
 		MetadataHash: metadataHash,

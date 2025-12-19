@@ -56,7 +56,8 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     <div className="flex items-center gap-2">
                         <DollarSign size={14} /> <span>Value</span>
                     </div>
-                    <span className="text-emerald-400 font-medium">${asset.value.toLocaleString()}</span>
+                    <span className="text-emerald-400 font-medium">${(asset.value || 0).toLocaleString()}</span>
+
                 </div>
             </div>
 
@@ -91,8 +92,8 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                                 onClick={() => onTransfer(asset)}
                                 disabled={!isOwner}
                                 className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all ${isOwner
-                                        ? 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/20 cursor-pointer'
-                                        : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                                    ? 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/20 cursor-pointer'
+                                    : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
                                     }`}>
                                 Transfer
                             </button>
@@ -100,8 +101,8 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                                 onClick={() => onShare(asset)}
                                 disabled={!isOwner}
                                 className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 ${isOwner
-                                        ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 cursor-pointer'
-                                        : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 cursor-pointer'
+                                    : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
                                     }`}>
                                 <Eye size={14} /> Share
                             </button>

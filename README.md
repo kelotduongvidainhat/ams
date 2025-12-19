@@ -74,7 +74,15 @@ cd .. # Quay lại thư mục gốc ams/
 docker-compose -f docker-compose-app.yaml up --build -d
 ```
 
-**Bước 5: Kiểm tra Truy cập**
+**Bước 5: Khởi tạo Database (Init Schema)**
+
+Để tính năng Explorer và lưu lịch sử hoạt động, cần nạp cấu trúc bảng vào PostgreSQL:
+```bash
+# Chờ khoảng 10s để container database khởi động hoàn tất, sau đó chạy:
+docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql
+```
+
+**Bước 6: Kiểm tra Truy cập**
 *   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 

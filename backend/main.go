@@ -275,7 +275,6 @@ func main() {
 			p.Name, 
 			p.Type, 
 			p.Owner, 
-			fmt.Sprintf("%d", p.Value), 
 			p.Status, 
 			p.MetadataURL, 
 			metadataHash,
