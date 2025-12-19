@@ -253,6 +253,21 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
     *   **Dynamic Identity**: Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
     *   **Non-repudiation**: Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
 
+#### **Giai đoạn 5: Hệ thống Xác thực Bảo mật (Authentication System) ✅ Completed**
+*   **Mục tiêu**: Bảo mật API và quản lý phiên đăng nhập người dùng.
+*   **Tính năng Đã triển khai**:
+    1.  **Password Security**:
+        *   Sử dụng thư viện `bcrypt` để mã hóa mật khẩu một chiều trước khi lưu vào PostgreSQL.
+        *   Đảm bảo mật khẩu gốc không bao giờ được lưu trữ dưới dạng plain-text.
+    2.  **JWT Authentication**:
+        *   Triển khai tiêu chuẩn **JSON Web Token (JWT)** cho quản lý phiên.
+        *   Token chứa thông tin `verify user_id` và `role`, được ký bằng Secret Key.
+    3.  **Secure Endpoints**:
+        *   Middleware bảo vệ các API quan trọng (`/protected/...`).
+        *   Yêu cầu `Authorization: Bearer <token>` trong Header của mọi request nhạy cảm.
+    4.  **Login API**:
+        *   `POST /api/auth/login`: Xác thực thông tin đăng nhập, trả về JWT Token.
+
 ---
 ## 🛠️ Công cụ hỗ trợ (Helper Scripts)
 
@@ -264,4 +279,5 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
 ## 📚 Tài liệu tham khảo
 
 *   [Chi tiết về Network & Debugging](network/README.md)
-*   [Lý thuyết CCAAS & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md)
+*   [Lý thuyết CCAAS & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md) 
+

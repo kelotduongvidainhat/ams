@@ -59,8 +59,24 @@ docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql || 
 
 
 # 9. Populate Extended Sample Data
-echo "📦 [Step 9/9] Populating Extended Sample Data..."
+echo "📦 [Step 9/10] Populating Extended Sample Data..."
 ./scripts/create_sample_data.sh
+
+# 10. Create Test Authenticated User
+echo "🔐 [Step 10/12] Creating Test User with Password..."
+sleep 3 # Wait for backend to be fully ready
+curl -s -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"id": "demo_user", "full_name": "Demo User", "identity_number": "DEMO001", "role": "User", "password": "demo123"}' \
+  > /dev/null && echo "✅ Test user 'demo_user' created (password: demo123)" || echo "⚠️  User creation skipped (might already exist)"
+
+# 11. Sync Blockchain Users to PostgreSQL
+echo "🔄 [Step 11/12] Syncing blockchain users to PostgreSQL..."
+./scripts/sync_users.sh
+
+# 12. Add Passwords to All Existing Users
+echo "🔐 [Step 12/12] Adding passwords to all blockchain users..."
+./scripts/add_passwords.sh
 
 echo "========================================================="
 echo "✅  SYSTEM READY"
@@ -70,5 +86,12 @@ echo "👉 Frontend: http://localhost:5173"
 echo "👉 Backend:  http://localhost:3000/api/health"
 echo "👉 Explorer: http://localhost:3000/api/explorer/assets"
 echo ""
-echo "Test Command:"
+echo "🔐 Login Credentials:"
+echo "   Username: demo_user | Password: demo123"
+echo "   Username: Tomoko    | Password: tomoko123"
+echo "   Username: admin     | Password: admin123"
+echo "   (See scripts/add_passwords.sh for full list)"
+echo ""
+echo "Test Commands:"
 echo "curl \"http://localhost:3000/api/assets?user_id=Tomoko\""
+echo "curl -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"Tomoko\",\"password\":\"tomoko123\"}'"

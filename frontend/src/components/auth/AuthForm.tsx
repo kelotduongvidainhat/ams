@@ -6,6 +6,7 @@ interface AuthFormData {
     fullName: string;
     identityNumber: string;
     role: string;
+    password?: string;
 }
 
 interface AuthFormProps {
@@ -26,12 +27,24 @@ export default function AuthForm({
     return (
         <form onSubmit={onSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">User ID</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">User ID / Username</label>
                 <div className="relative">
                     <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                     <input
                         name="id" value={formData.id} onChange={onChange}
                         type="text" required placeholder="e.g. user01"
+                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">Password</label>
+                <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                    <input
+                        name="password" value={formData.password || ''} onChange={onChange}
+                        type="password" required placeholder="••••••••"
                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                     />
                 </div>

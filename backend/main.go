@@ -14,6 +14,7 @@ import (
 
 	"ams/backend/fabric"
 	"ams/backend/sync"
+	"ams/backend/auth"
 )
 
 
@@ -76,7 +77,7 @@ func main() {
 			log.Printf("🔎 Explorer Query - Search: %s, Owner: %s, Type: %s", search, owner, itemType)
 
 			// Build Query
-			q := "SELECT id, name, asset_type, owner, value, status, metadata_url, last_tx_id FROM assets WHERE 1=1"
+			q := "SELECT id, name, asset_type, owner, status, metadata_url, last_tx_id FROM assets WHERE 1=1"
 			args := []interface{}{}
 			argId := 1
 
@@ -111,17 +112,16 @@ func main() {
 					Name        string
 					Type        string
 					Owner       string
-					Value       int
 					Status      string
 					MetadataURL string
 					LastTxID    string
 				}
-				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Value, &r.Status, &r.MetadataURL, &r.LastTxID); err != nil {
+				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.LastTxID); err != nil {
 					continue
 				}
 				results = append(results, map[string]interface{}{
 					"id": r.ID, "name": r.Name, "type": r.Type, "owner": r.Owner, 
-					"value": r.Value, "status": r.Status, "metadata_url": r.MetadataURL, "last_tx_id": r.LastTxID,
+					"status": r.Status, "metadata_url": r.MetadataURL, "last_tx_id": r.LastTxID,
 				})
 			}
 			
@@ -144,8 +144,7 @@ func main() {
 					h.to_owner,
 					h.timestamp,
 					a.name as asset_name,
-					a.asset_type,
-					a.value
+					a.asset_type
 				FROM asset_history h
 				LEFT JOIN assets a ON h.asset_id = a.id
 				WHERE h.timestamp >= NOW() - INTERVAL '24 hours'
@@ -163,9 +162,8 @@ func main() {
 			for rows.Next() {
 				var txID, assetID, actionType, toOwner, assetName, assetType string
 				var timestamp string
-				var value int
 
-				err := rows.Scan(&txID, &assetID, &actionType, &toOwner, &timestamp, &assetName, &assetType, &value)
+				err := rows.Scan(&txID, &assetID, &actionType, &toOwner, &timestamp, &assetName, &assetType)
 				if err != nil {
 					log.Printf("Error scanning transaction row: %v", err)
 					continue
@@ -178,7 +176,6 @@ func main() {
 					"asset_type":  assetType,
 					"action_type": actionType,
 					"to_owner":    toOwner,
-					"value":       value,
 					"timestamp":   timestamp,
 				})
 			}
@@ -202,10 +199,15 @@ func main() {
 	
 	// Helper to get contract based on user_id context
 	getContract := func(c *fiber.Ctx) (*client.Contract, error) {
+		// 1. Check JWT Context first (Priority for Secured Endpoints)
+		if user, ok := c.Locals("user").(*auth.Claims); ok {
+			log.Printf("🔐 acting as (JWT): %s", user.UserID)
+			return fabService.GetContractForUser(user.UserID)
+		}
+
+		// 2. Fallback to Query/Header (Legacy/Public Access)
 		userId := c.Query("user_id")
 		if userId == "" {
-			// Try body for POST requests? Or header?
-			// For minimal refactor, we stick to Query or Body 'From' if available
 			userId = "User1" // Default fallback for now
 		}
 		
@@ -219,11 +221,213 @@ func main() {
 		return fabService.GetContractForUser(userId)
 	}
 
-	// Get All Assets (Filtered by User Access)
+	// --- AUTH SERVICE ---
+
+	// Login
+	api.Post("/auth/login", func(c *fiber.Ctx) error {
+		type LoginRequest struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		p := new(LoginRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		if pgDB == nil {
+			return c.Status(503).JSON(fiber.Map{"error": "Database not available for auth"})
+		}
+
+		var passwordHash string
+		var role string
+		err := pgDB.QueryRow("SELECT password_hash, role FROM users WHERE id = $1", p.Username).Scan(&passwordHash, &role)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		}
+
+		if !auth.CheckPasswordHash(p.Password, passwordHash) {
+			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		}
+
+		token, err := auth.GenerateJWT(p.Username, role)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to generate token"})
+		}
+
+		return c.JSON(fiber.Map{
+			"token": token,
+			"user": fiber.Map{
+				"id": p.Username,
+				"role": role,
+			},
+		})
+	})
+
+// Set Password for Existing User (without creating on blockchain)
+api.Post("/auth/set-password", func(c *fiber.Ctx) error {
+	type SetPasswordRequest struct {
+		UserID   string `json:"user_id"`
+		Password string `json:"password"`
+	}
+	p := new(SetPasswordRequest)
+	if err := c.BodyParser(p); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+	}
+
+	if pgDB == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Database not available"})
+	}
+
+	// Hash the password
+	hash, err := auth.HashPassword(p.Password)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to hash password"})
+	}
+
+	// Update password in PostgreSQL (user must already exist)
+	result, err := pgDB.Exec("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", hash, p.UserID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Database error: " + err.Error()})
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found in database. User must be synced from blockchain first."})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Password set successfully",
+		"user_id": p.UserID,
+	})
+})
+
+	// Middleware for Protected Routes
+	protected := api.Group("/protected")
+	protected.Use(func(c *fiber.Ctx) error {
+		tokenString := c.Get("Authorization")
+		if len(tokenString) < 7 || tokenString[:7] != "Bearer " {
+			return c.Status(401).JSON(fiber.Map{"error": "Missing or invalid token"})
+		}
+		tokenString = tokenString[7:]
+
+		claims, err := auth.ValidateJWT(tokenString)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Invalid token"})
+		}
+
+		c.Locals("user", claims)
+		return c.Next()
+	})
+
+	
+	// Create Asset (Protected)
+	protected.Post("/assets", func(c *fiber.Ctx) error {
+		type AssetRequest struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Type        string `json:"type"`
+			Owner       string `json:"owner"` // Optional, defaults to JWT user
+			Status      string `json:"status"`
+			MetadataURL string `json:"metadata_url"`
+		}
+
+		p := new(AssetRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		// Enforce Owner = JWT User (unless Admin?)
+		// For now, simpler: Owner is the Creator
+		claims := c.Locals("user").(*auth.Claims)
+		p.Owner = claims.UserID
+
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+
+		// Calculate Hash (Simple simulation)
+		metadataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(p.MetadataURL + p.Name)))
+
+		log.Printf("Submitting Transaction: CreateAsset, ID: %s", p.ID)
+		
+		_, err = contract.SubmitTransaction("CreateAsset", 
+			p.ID, 
+			p.Name, 
+			p.Type, 
+			p.Owner, 
+			p.Status, 
+			p.MetadataURL, 
+			metadataHash,
+		)
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to submit transaction: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{
+			"message": "Asset created successfully", 
+			"id": p.ID, 
+			"hash": metadataHash,
+		})
+	})
+	
+	// Transfer Asset (Protected)
+	protected.Put("/assets/:id/transfer", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+		
+		id := c.Params("id")
+		type TransferRequest struct {
+			NewOwner string `json:"new_owner"`
+		}
+		p := new(TransferRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("Submitting Transaction: TransferAsset, ID: %s to %s", id, p.NewOwner)
+		_, err = contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to transfer asset: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{"message": "Asset transferred successfully"})
+	})
+
+	// Grant Access (Protected)
+	protected.Post("/assets/:id/access", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+
+		id := c.Params("id")
+		type AccessRequest struct {
+			ViewerID string `json:"viewer_id"`
+		}
+		p := new(AccessRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("Submitting Transaction: GrantAccess for Asset %s to %s", id, p.ViewerID)
+		_, err = contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to grant access: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{"message": "Access granted successfully"})
+	})
+
+	// Get All Assets (Filtered by User Access) - Legacy Public/Private hybrid
 	api.Get("/assets", func(c *fiber.Ctx) error {
 		userId := c.Query("user_id")
 		userRole := c.Query("user_role")
 
+		// If JWT is present in header, prefer it?
+		// Note: Frontend might not send bearer for this public-ish view yet.
+		
 		contract, err := getContract(c)
 		if err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": "Authentication failed: " + err.Error()})
@@ -236,9 +440,6 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		
-		// Decode the filtered result in Backend (since Chaincode returns ALL)
-        // Note: For large datasets, this filtering MUST move to Chaincode (GetAssetsForUser).
-        // For Filter 4.0 MVP, we do it here.
         var allAssets []map[string]interface{}
         if err := json.Unmarshal(evaluateResult, &allAssets); err != nil {
              return c.Status(500).JSON(fiber.Map{"error": "Failed to parse chaincode response"})
@@ -246,11 +447,6 @@ func main() {
 
         var visibleAssets []map[string]interface{}
         for _, asset := range allAssets {
-            // Logic: 
-            // 1. Admin sees everything
-            // 2. Owner sees their assets
-            // 3. Viewers list contains userId OR "EVERYONE"
-            
             owner, _ := asset["owner"].(string)
             viewersInterface, ok := asset["viewers"].([]interface{})
             
@@ -275,14 +471,18 @@ func main() {
 		return c.JSON(visibleAssets)
 	})
 
-	// Create Asset
+	// Create Asset (Legacy Unprotected - Keep for scripts?)
+	// Moving to protected.Post("/assets") above.
+	// We commented out the old "api.Post('/assets')" to force usage of protected or new structure.
+	// But sample data scripts use unprotected.
+	// Let's Keep unprotected for now for scripts, but warn.
+	
 	api.Post("/assets", func(c *fiber.Ctx) error {
 		type AssetRequest struct {
 			ID          string `json:"id"`
 			Name        string `json:"name"`
 			Type        string `json:"type"`
 			Owner       string `json:"owner"`
-			Value       int    `json:"value"`
 			Status      string `json:"status"`
 			MetadataURL string `json:"metadata_url"`
 		}
@@ -291,51 +491,27 @@ func main() {
 		if err := c.BodyParser(p); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
-
-		// Use the Owner field as the submitting identity if possible, or X-User-ID
-		// Here we assume the frontend sends the creator's ID in Query or Header
-		// Ideally p.Owner IS the creator.
 		
-		// Allow overriding via Query for simulation
 		submittingUser := c.Query("user_id") 
-		if submittingUser == "" { submittingUser = p.Owner } // Fallback to owner field
-		
-		c.Request().Header.Set("X-User-ID", submittingUser) // Pass to helper
+		if submittingUser == "" { submittingUser = p.Owner } 
+		c.Request().Header.Set("X-User-ID", submittingUser)
 		
 		contract, err := getContract(c)
 		if err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
 		}
 
-		// Calculate Hash (Simple simulation)
-		// Real implementation would hash the file content from metadata_url or upload
-		metadataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(p.MetadataURL + p.Name))) // Dummy logic for now
-
-		log.Printf("Submitting Transaction: CreateAsset, ID: %s", p.ID)
+		metadataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(p.MetadataURL + p.Name)))
+		log.Printf("Submitting Transaction: CreateAsset (Public), ID: %s", p.ID)
 		
-		// CreateAsset(id, name, type, owner, value, status, metadataUrl, metadataHash)
-		_, err = contract.SubmitTransaction("CreateAsset", 
- 
-			p.ID, 
-			p.Name, 
-			p.Type, 
-			p.Owner, 
-			p.Status, 
-			p.MetadataURL, 
-			metadataHash,
-		)
+		_, err = contract.SubmitTransaction("CreateAsset", p.ID, p.Name, p.Type, p.Owner, p.Status, p.MetadataURL, metadataHash)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to submit transaction: " + err.Error()})
 		}
 
-		return c.JSON(fiber.Map{
-			"message": "Asset created successfully", 
-			"id": p.ID, 
-			"hash": metadataHash,
-		})
+		return c.JSON(fiber.Map{"message": "Asset created successfully", "id": p.ID})
 	})
-
 
 	// Get Asset History
 	api.Get("/assets/:id/history", func(c *fiber.Ctx) error {
@@ -343,66 +519,12 @@ func main() {
 		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
 
 		id := c.Params("id")
-		log.Printf("Evaluating Transaction: GetAssetHistory, ID: %s", id)
-
 		evaluateResult, err := contract.EvaluateTransaction("GetAssetHistory", id)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-		}
-
+		if err != nil { return c.Status(500).JSON(fiber.Map{"error": err.Error()}) }
 		c.Set("Content-Type", "application/json")
 		return c.Send(evaluateResult)
 	})
 
-	// Transfer Asset
-	api.Put("/assets/:id/transfer", func(c *fiber.Ctx) error {
-		contract, err := getContract(c)
-		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
-		
-		id := c.Params("id")
-		type TransferRequest struct {
-			NewOwner string `json:"new_owner"`
-		}
-		p := new(TransferRequest)
-		if err := c.BodyParser(p); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
-		}
-
-		log.Printf("Submitting Transaction: TransferAsset, ID: %s to %s", id, p.NewOwner)
-		_, err = contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to transfer asset: " + err.Error()})
-		}
-
-		return c.JSON(fiber.Map{"message": "Asset transferred successfully"})
-	})
-
-
-	// Grant Access
-	api.Post("/assets/:id/access", func(c *fiber.Ctx) error {
-		contract, err := getContract(c)
-		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
-
-		id := c.Params("id")
-		type AccessRequest struct {
-			ViewerID string `json:"viewer_id"`
-		}
-		p := new(AccessRequest)
-		if err := c.BodyParser(p); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
-		}
-
-		log.Printf("Submitting Transaction: GrantAccess for Asset %s to %s", id, p.ViewerID)
-		_, err = contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to grant access: " + err.Error()})
-		}
-
-		return c.JSON(fiber.Map{"message": "Access granted successfully"})
-	})
 
 	// --- WALLET SERVICE ---
 
@@ -429,14 +551,15 @@ func main() {
 			log.Printf("❌ WALLET: CA Registration failed: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "CA Registration failed: " + err.Error()})
 		}
+		
+		// 1.5 Hash Password for DB
+		hash, _ := auth.HashPassword(p.Password)
 
 		// 2. Register On-Chain (CreateUser in Ledger)
-		// We use the newly created identity to submit the transaction
 		c.Request().Header.Set("X-User-ID", p.Username) 
 		
 		contract, err := getContract(c)
 		if err != nil {
-			log.Printf("❌ WALLET: Failed to get contract for new user %s: %v", p.Username, err)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to network as new user: " + err.Error()})
 		}
 		
@@ -445,12 +568,20 @@ func main() {
 			p.Username, 
 			p.FullName, 
 			p.IdentityNumber, 
-			"User", // Default role
+			"User", 
 		)
 
 		if err != nil {
 			log.Printf("❌ WALLET: On-Chain creation failed: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create user on ledger: " + err.Error()})
+		}
+		
+		// 3. Update Password Hash in DB (since Sync Listener only syncs ID/Role, not password)
+		if pgDB != nil {
+			_, err = pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.Username)
+			if err != nil {
+				log.Printf("⚠️ Failed to update password hash: %v", err)
+			}
 		}
 
 		return c.JSON(fiber.Map{
@@ -461,11 +592,8 @@ func main() {
 
 	// --- USER Management ---
 
-	// Register User
+	// Register User (Manual)
 	api.Post("/users", func(c *fiber.Ctx) error {
-		// NOTE: This currently creates User On-Chain (Ledger).
-		// ideally it should also Call Fabric CA to register the MSP identity if Real Identity.
-		
 		contract, err := getContract(c)
 		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
 
@@ -474,6 +602,7 @@ func main() {
 			FullName       string `json:"full_name"`
 			IdentityNumber string `json:"identity_number"`
 			Role           string `json:"role"`
+			Password       string `json:"password"` // Optional: Set password for existing manual users
 		}
 
 		p := new(UserRequest)
@@ -484,7 +613,6 @@ func main() {
 		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
 		
 		_, err = contract.SubmitTransaction("CreateUser", 
- 
 			p.ID, 
 			p.FullName, 
 			p.IdentityNumber, 
@@ -494,11 +622,14 @@ func main() {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to register user: " + err.Error()})
 		}
+		
+		// Optional: Hash Password
+		if p.Password != "" && pgDB != nil {
+			hash, _ := auth.HashPassword(p.Password)
+			pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.ID)
+		}
 
-		return c.JSON(fiber.Map{
-			"message": "User registered successfully", 
-			"id": p.ID, 
-		})
+		return c.JSON(fiber.Map{"message": "User registered successfully", "id": p.ID})
 	})
 
 	// Get User Details
@@ -507,8 +638,6 @@ func main() {
 		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
 
 		id := c.Params("id")
-		log.Printf("Evaluating Transaction: ReadUser, ID: %s", id)
-		
 		evaluateResult, err := contract.EvaluateTransaction("ReadUser", id)
 
 		if err != nil {

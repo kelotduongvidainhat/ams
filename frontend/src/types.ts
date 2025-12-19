@@ -17,6 +17,14 @@ export interface User {
     wallet_address?: string;
 }
 
+export interface AuthResponse {
+    token: string;
+    user: {
+        id: string;
+        role: string;
+    }
+}
+
 export interface AssetHistory {
     txId: string;
     timestamp: string;

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     identity_number VARCHAR(50),
     role            VARCHAR(50) CHECK (role IN ('Admin', 'Owner', 'Auditor', 'Viewer', 'User')),
     wallet_address  VARCHAR(255),
+    password_hash   VARCHAR(255),
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -21,7 +22,6 @@ CREATE TABLE IF NOT EXISTS assets (
     name            VARCHAR(255) NOT NULL,
     asset_type      VARCHAR(50),
     owner           VARCHAR(64), -- Can reference users(id) if strict, but loose coupling is safer for blockchain sync
-    value           INTEGER DEFAULT 0,
     status          VARCHAR(50),
     metadata_url    TEXT,
     metadata_hash   CHAR(64),

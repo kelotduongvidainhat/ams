@@ -8,6 +8,25 @@ const api = axios.create({
     },
 });
 
+// Auth Token Management
+let authToken: string | null = localStorage.getItem('ams_token');
+
+export const setAuthToken = (token: string | null) => {
+    authToken = token;
+    if (token) {
+        localStorage.setItem('ams_token', token);
+    } else {
+        localStorage.removeItem('ams_token');
+    }
+};
+
+api.interceptors.request.use((config) => {
+    if (authToken) {
+        config.headers.Authorization = `Bearer ${authToken}`;
+    }
+    return config;
+});
+
 // export const getAssets = async (): Promise<Asset[]> => {
 //     const response = await api.get<Asset[]>('/assets');
 //     return response.data;
@@ -28,12 +47,9 @@ export const grantAccess = async (id: string, viewerId: string) => {
 };
 
 export const createAsset = async (asset: Partial<Asset>) => {
-    const response = await api.post('/assets', {
+    const response = await api.post('/protected/assets', { // Use Protected Route
         ...asset,
-        id: asset.ID, // Backend expects "id" (lowercase) but our interface uses ID (uppercase) from Go. Adjusting mapping if needed.
-        // Wait, backend struct tags say `json:"id"`. But output from GetAllAssets has uppercase ID because it just dumps the struct.
-        // Let's standarize to use what the backend API expects in POST.
-        // The backend POST expects: id, name, type...
+        id: asset.ID,
         metadata_url: asset.metadata_url,
     });
     return response.data;
@@ -41,8 +57,20 @@ export const createAsset = async (asset: Partial<Asset>) => {
 
 // --- User API ---
 
-export const registerUser = async (user: User) => {
-    const response = await api.post('/users', user);
+export const login = async (username: string, password: string) => {
+    const response = await api.post('/auth/login', { username, password });
+    return response.data;
+};
+
+export const registerUser = async (user: any) => {
+    // Map to Wallet Request structure
+    const payload = {
+        username: user.id || user.username,
+        password: user.password,
+        full_name: user.full_name,
+        identity_number: user.identity_number
+    };
+    const response = await api.post('/wallet/register', payload);
     return response.data;
 };
 

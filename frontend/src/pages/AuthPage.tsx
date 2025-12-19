@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { registerUser, getUser } from '../services/api';
+import { registerUser, login, setAuthToken } from '../services/api'; // Import new helpers
 import { Activity, LogIn } from 'lucide-react';
 import type { User } from '../types';
 import AuthForm from '../components/auth/AuthForm';
@@ -19,7 +19,8 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
         id: '',
         fullName: '',
         identityNumber: '',
-        role: 'User'
+        role: 'User',
+        password: '' // Added password
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -33,30 +34,38 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
 
         try {
             if (isLogin) {
-                // Login Simulation (Check if User Exists on Chain)
-                const user = await getUser(formData.id);
-                if (user && user.id) {
-                    setMsg({ type: 'success', text: `Welcome back, ${user.full_name} (${user.role})!` });
+                // Login Flow
+                const response = await login(formData.id, formData.password);
+                if (response.token) {
+                    setAuthToken(response.token);
+                    const user = {
+                        id: response.user.id,
+                        role: response.user.role,
+                        full_name: response.user.id, // Fallback as login doesn't return full name yet
+                        identity_number: 'N/A'
+                    };
+                    setMsg({ type: 'success', text: `Welcome back, ${user.id}!` });
                     setAuthenticatedUser(user);
+                    onLogin(user); // Auto login
                 }
             } else {
-                // Register
+                // Register Flow
                 const newUser = {
                     id: formData.id,
                     full_name: formData.fullName,
                     identity_number: formData.identityNumber,
-                    role: formData.role
+                    role: formData.role,
+                    password: formData.password
                 };
                 await registerUser(newUser);
-                setMsg({ type: 'success', text: 'Account registered onto Blockchain successfully!' });
-
-                // For simplicity, auto-login after register in this demo flow? 
-                // Or just ask them to login. Let's make them switch to login.
+                setMsg({ type: 'success', text: 'Account registered onto Blockchain successfully! Please Login.' });
+                setIsLogin(true); // Switch to login
+                setFormData(prev => ({ ...prev, password: '' }));
             }
         } catch (err: any) {
             console.error(err);
             const errorText = err.response?.data?.error || err.message || 'Operation failed';
-            setMsg({ type: 'error', text: isLogin ? 'User ID not found on Blockchain.' : errorText });
+            setMsg({ type: 'error', text: errorText });
         } finally {
             setLoading(false);
         }

@@ -27,7 +27,6 @@ type Asset struct {
 	Name         string   `json:"name"`
 	Type         string   `json:"type"`
 	Owner        string   `json:"owner"`
-	Value        int      `json:"value"`
 	Status       string   `json:"status"`
 	MetadataURL  string   `json:"metadata_url"`
 	MetadataHash string   `json:"metadata_hash"`
@@ -104,13 +103,12 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 
 	// 1. Upsert into ASSETS table
 	query := `
-		INSERT INTO assets (id, doc_type, name, asset_type, owner, value, status, metadata_url, metadata_hash, viewers, last_tx_id, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+		INSERT INTO assets (id, doc_type, name, asset_type, owner, status, metadata_url, metadata_hash, viewers, last_tx_id, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			asset_type = EXCLUDED.asset_type,
 			owner = EXCLUDED.owner,
-			value = EXCLUDED.value,
 			status = EXCLUDED.status,
 			metadata_url = EXCLUDED.metadata_url,
 			metadata_hash = EXCLUDED.metadata_hash,
@@ -122,7 +120,7 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	
 	_, err := db.Exec(query, 
 		asset.ID, asset.DocType, asset.Name, asset.Type, asset.Owner, 
-		asset.Value, asset.Status, asset.MetadataURL, asset.MetadataHash, viewersJSON,
+		asset.Status, asset.MetadataURL, asset.MetadataHash, viewersJSON,
 		event.TransactionID,
 	)
 
