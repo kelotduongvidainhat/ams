@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/hyperledger/fabric-gateway/pkg/client"
 
 	"ams/backend/fabric"
 	"ams/backend/sync"
@@ -27,13 +28,13 @@ func main() {
 	// routes
 	api := app.Group("/api")
 
-	// Connect to Fabric
-	log.Println("Connecting to Fabric Network...")
-	contract, err := fabric.InitContract()
+	// Connect to Fabric Service
+	log.Println("Connecting to Fabric Network Service...")
+	fabService, err := fabric.InitService()
 	if err != nil {
-		log.Fatalf("Failed to connect to Fabric: %v", err)
+		log.Fatalf("Failed to connect to Fabric Service: %v", err)
 	}
-	log.Println("Connected to Fabric Network successfully!")
+	log.Println("Connected to Fabric Service successfully!")
 
 	// Connect to PostgreSQL
 	pgInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -49,13 +50,19 @@ func main() {
 	} else {
 		log.Println("✅ Connected to PostgreSQL for Off-Chain Indexing")
 		
-		// Start Block Listener
-		listener := &sync.BlockListener{
-			Network:   contract.Network, // We need to access the Network object, not just Contract
-			DB:        pgDB,
-			Chaincode: "basic",
+		// Start Block Listener (Using User1 as System Listener)
+		// We obtain a dedicated network connection for the listener
+		sysNetwork, err := fabService.GetNetworkForUser("User1") 
+		if err != nil {
+			log.Printf("⚠️ Failed to start listener (User1 wallet missing?): %v", err)
+		} else {
+			listener := &sync.BlockListener{
+				Network:   sysNetwork,
+				DB:        pgDB,
+				Chaincode: "basic",
+			}
+			go listener.StartEventListening()
 		}
-		go listener.StartEventListening()
 	}
 
 
@@ -192,15 +199,38 @@ func main() {
 			"message": "AMS Backend is running",
 		})
 	})
+	
+	// Helper to get contract based on user_id context
+	getContract := func(c *fiber.Ctx) (*client.Contract, error) {
+		userId := c.Query("user_id")
+		if userId == "" {
+			// Try body for POST requests? Or header?
+			// For minimal refactor, we stick to Query or Body 'From' if available
+			userId = "User1" // Default fallback for now
+		}
+		
+		// Check for header override
+		if h := c.Get("X-User-ID"); h != "" {
+			userId = h
+		}
+
+		// Log identity use
+		log.Printf("🔐 acting as: %s", userId)
+		return fabService.GetContractForUser(userId)
+	}
 
 	// Get All Assets (Filtered by User Access)
 	api.Get("/assets", func(c *fiber.Ctx) error {
-        // In a real app, these would come from the JWT Token in Context
 		userId := c.Query("user_id")
 		userRole := c.Query("user_role")
 
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Authentication failed: " + err.Error()})
+		}
+
 		log.Printf("Evaluating Transaction: GetAllAssets for User: %s (%s)", userId, userRole)
-		evaluateResult, err := contract.Contract.EvaluateTransaction("GetAllAssets")
+		evaluateResult, err := contract.EvaluateTransaction("GetAllAssets")
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -262,6 +292,21 @@ func main() {
 			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
 
+		// Use the Owner field as the submitting identity if possible, or X-User-ID
+		// Here we assume the frontend sends the creator's ID in Query or Header
+		// Ideally p.Owner IS the creator.
+		
+		// Allow overriding via Query for simulation
+		submittingUser := c.Query("user_id") 
+		if submittingUser == "" { submittingUser = p.Owner } // Fallback to owner field
+		
+		c.Request().Header.Set("X-User-ID", submittingUser) // Pass to helper
+		
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+
 		// Calculate Hash (Simple simulation)
 		// Real implementation would hash the file content from metadata_url or upload
 		metadataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(p.MetadataURL + p.Name))) // Dummy logic for now
@@ -269,7 +314,7 @@ func main() {
 		log.Printf("Submitting Transaction: CreateAsset, ID: %s", p.ID)
 		
 		// CreateAsset(id, name, type, owner, value, status, metadataUrl, metadataHash)
-		_, err := contract.Contract.SubmitTransaction("CreateAsset", 
+		_, err = contract.SubmitTransaction("CreateAsset", 
  
 			p.ID, 
 			p.Name, 
@@ -294,10 +339,13 @@ func main() {
 
 	// Get Asset History
 	api.Get("/assets/:id/history", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+
 		id := c.Params("id")
 		log.Printf("Evaluating Transaction: GetAssetHistory, ID: %s", id)
 
-		evaluateResult, err := contract.Contract.EvaluateTransaction("GetAssetHistory", id)
+		evaluateResult, err := contract.EvaluateTransaction("GetAssetHistory", id)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -309,6 +357,9 @@ func main() {
 
 	// Transfer Asset
 	api.Put("/assets/:id/transfer", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+		
 		id := c.Params("id")
 		type TransferRequest struct {
 			NewOwner string `json:"new_owner"`
@@ -319,7 +370,7 @@ func main() {
 		}
 
 		log.Printf("Submitting Transaction: TransferAsset, ID: %s to %s", id, p.NewOwner)
-		_, err := contract.Contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
+		_, err = contract.SubmitTransaction("TransferAsset", id, p.NewOwner)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to transfer asset: " + err.Error()})
@@ -331,6 +382,9 @@ func main() {
 
 	// Grant Access
 	api.Post("/assets/:id/access", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+
 		id := c.Params("id")
 		type AccessRequest struct {
 			ViewerID string `json:"viewer_id"`
@@ -341,7 +395,7 @@ func main() {
 		}
 
 		log.Printf("Submitting Transaction: GrantAccess for Asset %s to %s", id, p.ViewerID)
-		_, err := contract.Contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
+		_, err = contract.SubmitTransaction("GrantAccess", id, p.ViewerID)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to grant access: " + err.Error()})
@@ -354,6 +408,12 @@ func main() {
 
 	// Register User
 	api.Post("/users", func(c *fiber.Ctx) error {
+		// NOTE: This currently creates User On-Chain (Ledger).
+		// ideally it should also Call Fabric CA to register the MSP identity if Real Identity.
+		
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+
 		type UserRequest struct {
 			ID             string `json:"id"`
 			FullName       string `json:"full_name"`
@@ -368,7 +428,7 @@ func main() {
 
 		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
 		
-		_, err := contract.Contract.SubmitTransaction("CreateUser", 
+		_, err = contract.SubmitTransaction("CreateUser", 
  
 			p.ID, 
 			p.FullName, 
@@ -388,10 +448,13 @@ func main() {
 
 	// Get User Details
 	api.Get("/users/:id", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+
 		id := c.Params("id")
 		log.Printf("Evaluating Transaction: ReadUser, ID: %s", id)
 		
-		evaluateResult, err := contract.Contract.EvaluateTransaction("ReadUser", id)
+		evaluateResult, err := contract.EvaluateTransaction("ReadUser", id)
 
 		if err != nil {
 			return c.Status(404).JSON(fiber.Map{"error": "User not found or error: " + err.Error()})

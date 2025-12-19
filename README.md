@@ -68,6 +68,22 @@ cd network
 ./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
 ```
 
+**Bước 3.5: Đăng ký Danh tính Người dùng (Real Identity)**
+
+Trước khi khởi chạy ứng dụng, bạn cần đăng ký danh tính cho các người dùng thực để tạo ví (Wallet) dùng để ký giao dịch:
+```bash
+# Cấp quyền thực thi
+chmod +x scripts/enrollUser.sh
+
+# Đăng ký các user mẫu (Tomoko, Brad, JinSoo, Max...)
+./scripts/enrollUser.sh Tomoko password
+./scripts/enrollUser.sh Brad password
+./scripts/enrollUser.sh JinSoo password
+./scripts/enrollUser.sh Max password
+./scripts/enrollUser.sh Adriana password
+./scripts/enrollUser.sh Michel password
+```
+
 **Bước 4: Khởi chạy Ứng dụng (App)**
 ```bash
 cd .. # Quay lại thư mục gốc ams/
@@ -83,8 +99,12 @@ docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql
 ```
 
 **Bước 6: Kiểm tra Truy cập**
-*   **Frontend**: [http://localhost:5173](http://localhost:5173)
+*   **Frontend**: [http://localhost:5173](http://localhost:5173) (Đăng nhập với User ID: `Tomoko`, `Brad`...)
 *   **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+*   **API Test (Real Identity)**:
+    ```bash
+    curl "http://localhost:3000/api/assets?user_id=Tomoko"
+    ```
 
 ##  Thiết kế Hệ thống Mở rộng (System Design Spec)
 
@@ -208,9 +228,17 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
         *   Giảm tải cho Blockchain Gateway.
         *   Cho phép thực hiện các truy vấn phức tạp (JOIN, Sort, Group By) phục vụ **Public Explorer**.
 
+#### **Giai đoạn 4: Real Identity & Wallet Integration ✅ Completed**
+*   **Mục tiêu**: Tích hợp danh tính thực (X.509 Identity) thay vì mô phỏng User1.
+*   **Thực hiện**:
+    *   Sử dụng **Fabric CA** để đăng ký và cấp phát danh tính cho từng người dùng (Tomoko, Brad...).
+    *   Backend sử dụng **Wallet Manager** để tải Dynamic Identity từ File System.
+    *   Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
+    *   Đảm bảo tính **Non-repudiation** (Chống chối bỏ) - Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
+
 ---
 
-## �📚 Tài liệu tham khảo
+## 📚 Tài liệu tham khảo
 
 *   [Chi tiết về Network & Debugging](network/README.md)
 *   [Lý thuyết CCAAS & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md)
