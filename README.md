@@ -84,6 +84,16 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh Michel password
 ```
 
+**Bước 3.6: Đăng ký người dùng mới (Qua API - WaaS)**
+
+Bạn cũng có thể đăng ký người dùng mới trực tiếp thông qua API mà không cần chạy script shell:
+
+```bash
+curl -X POST http://localhost:3000/api/wallet/register \
+-H "Content-Type: application/json" \
+-d '{"username": "NewUser", "password": "password", "full_name": "New User", "identity_number": "ID-NEW"}'
+```
+
 **Bước 4: Khởi chạy Ứng dụng (App)**
 ```bash
 cd .. # Quay lại thư mục gốc ams/
@@ -228,13 +238,16 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
         *   Giảm tải cho Blockchain Gateway.
         *   Cho phép thực hiện các truy vấn phức tạp (JOIN, Sort, Group By) phục vụ **Public Explorer**.
 
-#### **Giai đoạn 4: Real Identity & Wallet Integration ✅ Completed**
-*   **Mục tiêu**: Tích hợp danh tính thực (X.509 Identity) thay vì mô phỏng User1.
+#### **Giai đoạn 4: Real Identity & Wallet Integration (WaaS) ✅ Completed**
+*   **Mục tiêu**: Tích hợp danh tính thực (X.509 Identity) và triển khai Wallet-as-a-Service (WaaS).
 *   **Thực hiện**:
-    *   Sử dụng **Fabric CA** để đăng ký và cấp phát danh tính cho từng người dùng (Tomoko, Brad...).
-    *   Backend sử dụng **Wallet Manager** để tải Dynamic Identity từ File System.
-    *   Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
-    *   Đảm bảo tính **Non-repudiation** (Chống chối bỏ) - Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
+    *   **Wallet-as-a-Service (WaaS)**: Backend trực tiếp giao tiếp với **Fabric CA** thông qua `fabric-ca-client` binary được nhúng sẵn trong container.
+    *   **Automated Registration**: API `POST /api/wallet/register` cho phép người dùng đăng ký tài khoản tự động. Quy trình bao gồm:
+        1.  Đăng ký (Register) người dùng mới với CA.
+        2.  Cấp phát (Enroll) chứng chỉ X.509 và lưu vào Wallet (File System).
+        3.  Tạo danh tính trên Ledger (On-Chain) ngay lập tức.
+    *   **Dynamic Identity**: Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
+    *   **Non-repudiation**: Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
 
 ---
 

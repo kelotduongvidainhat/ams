@@ -404,6 +404,61 @@ func main() {
 		return c.JSON(fiber.Map{"message": "Access granted successfully"})
 	})
 
+	// --- WALLET SERVICE ---
+
+	// Register Wallet (enrolls user with CA + creates on-chain)
+	api.Post("/wallet/register", func(c *fiber.Ctx) error {
+		type WalletRequest struct {
+			Username       string `json:"username"`
+			Password       string `json:"password"`
+			FullName       string `json:"full_name"`
+			IdentityNumber string `json:"identity_number"`
+		}
+
+		p := new(WalletRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("🔹 WALLET: Register request for %s", p.Username)
+
+		// 1. Enroll with CA
+		caClient := fabric.NewCAClient()
+		err := caClient.RegisterAndEnroll(p.Username, p.Password)
+		if err != nil {
+			log.Printf("❌ WALLET: CA Registration failed: %v", err)
+			return c.Status(500).JSON(fiber.Map{"error": "CA Registration failed: " + err.Error()})
+		}
+
+		// 2. Register On-Chain (CreateUser in Ledger)
+		// We use the newly created identity to submit the transaction
+		c.Request().Header.Set("X-User-ID", p.Username) 
+		
+		contract, err := getContract(c)
+		if err != nil {
+			log.Printf("❌ WALLET: Failed to get contract for new user %s: %v", p.Username, err)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to network as new user: " + err.Error()})
+		}
+		
+		log.Printf("🔹 WALLET: Creating User on-chain %s...", p.Username)
+		_, err = contract.SubmitTransaction("CreateUser", 
+			p.Username, 
+			p.FullName, 
+			p.IdentityNumber, 
+			"User", // Default role
+		)
+
+		if err != nil {
+			log.Printf("❌ WALLET: On-Chain creation failed: %v", err)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to create user on ledger: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{
+			"message": "User registered and enrolled successfully",
+			"username": p.Username,
+		})
+	})
+
 	// --- USER Management ---
 
 	// Register User

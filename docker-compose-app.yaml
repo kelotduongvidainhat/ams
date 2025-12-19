@@ -10,6 +10,8 @@ services:
       - PEER_ENDPOINT=peer0.org1.example.com:7051
       - GATEWAY_PEER=peer0.org1.example.com
       - POSTGRES_HOST=ams-postgres
+      - CA_HOST=ca_org1:7054
+      - CA_TLS_CERT=/crypto/fabric-ca/org1/tls-cert.pem
     volumes:
       - ./network/organizations:/crypto
     ports:
