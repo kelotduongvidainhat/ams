@@ -8,7 +8,7 @@ docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllA
 echo ""
 
 echo "--- 2. Create a New Asset (iPhone 16) - AssetID: asset99 ---"
-docker exec cli peer chaincode invoke -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/msp/tlscacerts/tlsca.example.com-cert.pem -C mychannel -n basic -c '{"Args":["CreateAsset","asset99","iPhone 16","Electronics","Alice","1200","Pre-order","http://apple.com/iphone16","dummy_hash_for_test"]}'
+docker exec cli peer chaincode invoke -o orderer1.example.com:7050 --ordererTLSHostnameOverride orderer1.example.com --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/organizations/ordererOrganizations/example.com/orderers/orderer1.example.com/msp/tlscacerts/tlsca.example.com-cert.pem -C mychannel -n basic -c '{"Args":["CreateAsset","asset99","iPhone 16","Electronics","Alice","Pre-order","http://apple.com/iphone16","dummy_hash_for_test"]}'
 sleep 3
 echo ""
 

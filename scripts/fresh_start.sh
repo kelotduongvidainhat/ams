@@ -57,8 +57,14 @@ sleep 10
 echo "💾 Initializing Database Schema..."
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql || echo "⚠️  Database might already be initialized or failed."
 
+
+# 9. Populate Extended Sample Data
+echo "📦 [Step 9/9] Populating Extended Sample Data..."
+./scripts/create_sample_data.sh
+
 echo "========================================================="
 echo "✅  SYSTEM READY"
+
 echo "========================================================="
 echo "👉 Frontend: http://localhost:5173"
 echo "👉 Backend:  http://localhost:3000/api/health"
