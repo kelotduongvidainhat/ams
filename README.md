@@ -232,11 +232,15 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
         *   Schema: Định nghĩa tại `database/schema.sql` (Assets, Users, History).
     3.  **Sync Service (Block Listener)**:
         *   Một dịch vụ chạy ngầm trong Backend (`backend/sync/listener.go`).
-        *   Lắng nghe sự kiện Chaincode (`AssetCreated`, `AssetUpdated`, `AssetTransferred`).
+        *   Lắng nghe sự kiện Chaincode (`AssetCreated`, `UserCreated`, `AssetTransferred`...).
         *   Tự động đồng bộ dữ liệu từ Ledger sang SQL trong thời gian thực (< 3s).
-    4.  **Lợi ích**:
-        *   Giảm tải cho Blockchain Gateway.
-        *   Cho phép thực hiện các truy vấn phức tạp (JOIN, Sort, Group By) phục vụ **Public Explorer**.
+    4.  **Luồng dữ liệu (Data & Sync Flow)**:
+        *   **Write**: API -> Blockchain (On-Chain). Nếu thành công -> Emit Event.
+        *   **Sync**: Event -> Block Listener -> PostgreSQL (Off-Chain).
+        *   **Read**: API -> PostgreSQL (Off-Chain). Giúp giảm tải cho Ledger và tăng tốc độ phản hồi.
+    5.  **Lợi ích**:
+        *   Giảm tải cho Blockchain Gateway (không cần Query trưc tiếp cho các tác vụ đọc nặng).
+        *   Đảm bảo tính nhất quán (Strong Consistency): DB chỉ cập nhật khi và chỉ khi Tx trên Blockchan thành công.
 
 #### **Giai đoạn 4: Real Identity & Wallet Integration (WaaS) ✅ Completed**
 *   **Mục tiêu**: Tích hợp danh tính thực (X.509 Identity) và triển khai Wallet-as-a-Service (WaaS).
@@ -248,6 +252,12 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
         3.  Tạo danh tính trên Ledger (On-Chain) ngay lập tức.
     *   **Dynamic Identity**: Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
     *   **Non-repudiation**: Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
+
+---
+## 🛠️ Công cụ hỗ trợ (Helper Scripts)
+
+*   `scripts/fresh_start.sh`: Tự động hóa toàn bộ quy trình Reset & Re-deploy (Network, App, DB, User Enrollment).
+*   `scripts/create_sample_data.sh`: Tạo dữ liệu mẫu (Assets) cho các user Tomoko, Brad, JinSoo, Max.
 
 ---
 

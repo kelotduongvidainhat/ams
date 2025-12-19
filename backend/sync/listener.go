@@ -34,6 +34,15 @@ type Asset struct {
 	Viewers      []string `json:"viewers"`
 }
 
+// User structure matching chaincode
+type User struct {
+	ID             string `json:"id"`
+	FullName       string `json:"full_name"`
+	IdentityNumber string `json:"identity_number"`
+	Role           string `json:"role"`
+	WalletAddress  string `json:"wallet_address"`
+}
+
 // StartEventListening begins the infinite loop of event processing
 func (bl *BlockListener) StartEventListening() {
 	log.Println("🔄 Starting Block Listener Service for Chaincode:", bl.Chaincode)
@@ -55,7 +64,34 @@ func (bl *BlockListener) StartEventListening() {
 			processAssetEvent(bl.DB, event)
 		case "AssetDeleted":
 			processDeleteEvent(bl.DB, event)
+		case "UserCreated":
+			processUserEvent(bl.DB, event)
 		}
+	}
+}
+
+func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
+	var user User
+	if err := json.Unmarshal(event.Payload, &user); err != nil {
+		log.Printf("⚠️ Failed to parse user payload: %v", err)
+		return
+	}
+
+	query := `
+		INSERT INTO users (id, full_name, identity_number, role, wallet_address, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			full_name = EXCLUDED.full_name,
+			identity_number = EXCLUDED.identity_number,
+			role = EXCLUDED.role,
+			wallet_address = EXCLUDED.wallet_address,
+			updated_at = NOW();
+	`
+	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress)
+	if err != nil {
+		log.Printf("❌ DB Error (Upsert User): %v", err)
+	} else {
+		log.Printf("✅ Synced User %s to Postgres", user.ID)
 	}
 }
 
