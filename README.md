@@ -13,18 +13,26 @@ Dự án triển khai mạng lưới blockchain riêng tư sử dụng **Hyperle
 
 ```
 ams/
-├── bin/                  # Các file thực thi của Fabric (peer, orderer, configtxgen...)
-├── config/               # Cấu hình lõi của Fabric (core.yaml, orderer.yaml)
-├── network/              # Cấu hình mạng lưới & Docker Compose
-│   ├── network.sh        # Script chính quản lý toàn bộ mạng lưới
-│   ├── docker/           # File docker-compose cho node và CA
-│   ├── configtx.yaml     # Cấu hình channel và genesis block
-│   └── docs/             # Tài liệu kỹ thuật chi tiết
-├── scripts/              # Các script tiện ích (được gọi bởi network.sh)
-│   ├── deployCCAAS.sh    # Logic deploy CCAAS
-│   ├── createChannel.sh  # Logic tạo channel
-│   └── ...
-└── builders/             # External builders (dùng cho CCAAS)
+├── backend/              # Backend API Service (Golang)
+│   ├── fabric/           # SDK Client kết nối Ledger
+│   ├── sync/             # Service đồng bộ Ledger sang SQL
+│   └── main.go           # Entry point
+├── frontend/             # Web Application (React + Vite + Tailwind)
+│   ├── src/              # Source code components, pages, services
+│   └── Dockerfile        # Cấu hình container hóa Frontend
+├── database/             # Database Off-chain (PostgreSQL)
+│   └── schema.sql        # Cấu trúc bảng (Users, History...)
+├── network/              # Core Hyperledger Fabric Network
+│   ├── chaincode/        # Smart Contracts (Asset Transfer)
+│   ├── docker/           # Docker Compose cho Peers/Orderers/CAs
+│   ├── network.sh        # Script quản lý vòng đời mạng lưới
+│   ├── test_network.sh   # Script e2e testing
+│   └── configtx.yaml     # Cấu hình Channel
+├── scripts/              # Utility Scripts (Deploy, Create Channel...)
+├── bin/                  # Fabric Binaries
+├── config/               # Fabric Core Configs
+├── builders/             # CCAAS External Builders
+└── docker-compose-app.yaml # Orchestration cho App (BE + FE + DB)
 ```
 
 ## 🚀 Hướng dẫn bắt đầu (Quick Start)
@@ -32,89 +40,43 @@ ams/
 ### 1. Yêu cầu hệ thống
 *   Docker & Docker Compose
 *   Go (Golang) v1.20+
-*   Quyền truy cập Internet (để pull Docker images)
 
-### 2. Khởi động mạng lưới
+### 2. Quy trình "Fresh Start" (Khởi chạy sạch)
 
-Di chuyển vào thư mục `network`:
+Để đảm bảo hệ thống chạy ổn định nhất, hãy làm theo quy trình Clean & Re-deploy đầy đủ sau:
 
+**Bước 1: Dọn dẹp hệ thống cũ**
 ```bash
+# Tại thư mục gốc ams/
+docker-compose -f docker-compose-app.yaml down
+docker system prune -f --volumes # Xóa container và volume rác
+
 cd network
+# Tắt mạng lưới Fabric và xóa crypto material cũ
+./network.sh down
 ```
 
-Dọn dẹp môi trường cũ (nếu có) và khởi động mạng lưới mới:
-
+**Bước 2: Khởi động Mạng lưới Fabric**
 ```bash
-# Dọn dẹp sạch sẽ (cần sudo để xóa các file crypto do docker tạo)
-sudo ./network.sh down
-
-# Khởi động mạng lưới (Peers, Orderers, CAs)
+# Tại thư mục network/
 ./network.sh up
-```
-
-*> Lưu ý: Lệnh `down` sẽ tự động xóa cả Docker containers và chaincode images (`basic_image`) để đảm bảo môi trường sạch.*
-
-### 3. Tạo Channel
-
-Tạo channel mặc định tên là `mychannel`:
-
-```bash
 ./network.sh createChannel -c mychannel
 ```
 
-### 4. Triển khai Chaincode (CCAAS)
-
-Deploy chaincode `basic` (Asset Transfer) với version 1.0:
-
+**Bước 3: Deploy Chaincode (CCAAS)**
 ```bash
 ./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
 ```
 
-Script sẽ tự động:
-1.  Build Docker image cho chaincode.
-2.  Chạy container chaincode.
-3.  Cài đặt, Approve và Commit chaincode lên mạng lưới.
-4.  Khởi tạo (Init) ledger.
-
-### 5. Kiểm tra kết quả
-Bạn có thể sử dụng script kiểm thử tự động (Recommended):
-
+**Bước 4: Khởi chạy Ứng dụng (App)**
 ```bash
-./test_network.sh
-```
-
-Hoặc chạy lệnh thủ công:
-```bash
-docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
-```
-### 6. Chạy ứng dụng với Docker (Containerization)
-
-Hệ thống hỗ trợ chạy Backend và Frontend trong Docker container, giúp triển khai dễ dàng và đồng nhất.
-
-**Bước 1: Khởi động mạng lưới (nếu chưa chạy)**
-```bash
-cd network
-./network.sh up createChannel -c mychannel
-./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
-```
-
-**Bước 2: Build và chạy ứng dụng**
-Tại thư mục gốc `ams/`:
-```bash
+cd .. # Quay lại thư mục gốc ams/
 docker-compose -f docker-compose-app.yaml up --build -d
 ```
 
-**Bước 3: Truy cập**
-*   **Web App**: [http://localhost:5173](http://localhost:5173) (User: `user01` / `admin`)
-*   **Backend API**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
-
-**Lưu ý:**
-*   Container Backend (`ams-backend`) tự động kết nối với mạng Fabric (`fabric_network`).
-*   Frontend sử dụng **Nginx Reverse Proxy**:
-    *   Route `/` -> Serve React App (Port 5173).
-    *   Route `/api` -> Proxy pass to `ams-backend:3000`.
-*   Nếu bạn đang chạy backend cục bộ (cổng 3000), hãy tắt nó trước khi chạy Docker để tránh xung đột cổng (`fuser -k 3000/tcp`).
-*   Volume `/crypto` được mount tự động từ thư mục `network/organizations`.
+**Bước 5: Kiểm tra Truy cập**
+*   **Frontend**: [http://localhost:5173](http://localhost:5173)
+*   **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 
 ##  Thiết kế Hệ thống Mở rộng (System Design Spec)
 
