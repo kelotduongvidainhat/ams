@@ -637,6 +637,13 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
     *   **Event-Driven**: Backend đóng vai trò Relay, UI được cập nhật thông qua Event Listener từ Blockchain.
     *   **Security**: Loại bỏ hoàn toàn khả năng thao túng database pending transfer từ phía Backend/Admin.
 
+#### **Giai đoạn 7: Future Works (Planned)**
+*   **Mục tiêu**: Mở rộng quy mô và tính năng.
+*   **Các tính năng dự kiến**:
+    *   **Dashboard Analytics**: Biểu đồ thống kê giao dịch theo thời gian thực.
+    *   **Network Expansion**: Thêm Organization mới vào mạng lưới (Org2, Org3).
+    *   **IPFS Integration**: Lưu trữ metadata assets phi tập trung thực sự thay vì chỉ URL.
+
 ---
 ## 🛠️ Công cụ hỗ trợ (Helper Scripts)
 

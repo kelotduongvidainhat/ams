@@ -154,24 +154,19 @@ POST /api/protected/transfers/1/approve
 }
 ```
 
-**Database Operations**:
-```sql
--- Record approval
-INSERT INTO transfer_signatures (pending_transfer_id, signer_id, signer_role, action)
-VALUES ($1, $2, 'NEW_OWNER', 'APPROVED', 'Approved transfer');
-
--- Check signature count
-SELECT COUNT(*) FROM transfer_signatures 
-WHERE pending_transfer_id = $1 AND action = 'APPROVED';
--- Result: 2 ✓
-
--- Execute on blockchain
-SubmitTransaction("TransferAsset", asset_id, new_owner);
-
--- Update status
-UPDATE pending_transfers 
-SET status = 'EXECUTED', executed_at = NOW() 
-WHERE id = $1;
+**Chaincode Execution**:
+```go
+// 1. Verify signatures and expiration
+if len(pending.Approvals) >= 2 {
+    // 2. Atomic Status Update
+    pending.Status = "EXECUTED"
+    
+    // 3. Asset Ownership Transfer
+    asset.Owner = pending.NewOwner
+    
+    // 4. Emit Events
+    ctx.GetStub().SetEvent("AssetTransferred", assetJSON)
+}
 ```
 
 **Blockchain State Changes**:
@@ -398,52 +393,42 @@ Initiator (Auto-Approve) + Recipient (Manual Approve) = Execution
                         └──────────┘
 ```
 
-### Database Schema
+### Chaincode Data Structures
 
-```sql
-CREATE TABLE pending_transfers (
-    id              SERIAL PRIMARY KEY,
-    asset_id        VARCHAR(64) NOT NULL,
-    asset_name      VARCHAR(255),
-    current_owner   VARCHAR(64) NOT NULL,
-    new_owner       VARCHAR(64) NOT NULL,
-    status          VARCHAR(20) DEFAULT 'PENDING',
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at      TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours'),
-    executed_at     TIMESTAMP,
-    rejection_reason TEXT
-);
+All multi-signature state is stored directly on the Ledger (World State):
 
-CREATE TABLE transfer_signatures (
-    id              SERIAL PRIMARY KEY,
-    pending_transfer_id INT REFERENCES pending_transfers(id) ON DELETE CASCADE,
-    signer_id       VARCHAR(64) NOT NULL,
-    signer_role     VARCHAR(20) NOT NULL, -- 'CURRENT_OWNER' or 'NEW_OWNER'
-    action          VARCHAR(20) NOT NULL, -- 'APPROVED' or 'REJECTED'
-    signed_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    comment         TEXT,
-    UNIQUE(pending_transfer_id, signer_id)
-);
+```go
+type PendingTransfer struct {
+    DocType      string     `json:"docType"`      // "pending_transfer"
+    AssetID      string     `json:"asset_id"`
+    CurrentOwner string     `json:"current_owner"`
+    NewOwner     string     `json:"new_owner"`
+    Status       string     `json:"status"`       // PENDING, EXECUTED, REJECTED, EXPIRED
+    Approvals    []Approval `json:"approvals"`
+    CreatedAt    int64      `json:"created_at"`   // Unix timestamp
+    ExpiresAt    int64      `json:"expires_at"`   // Unix timestamp (+24h)
+}
+
+type Approval struct {
+    Signer    string `json:"signer"`
+    Role      string `json:"role"`
+    Timestamp int64  `json:"timestamp"`
+}
 ```
 
 ### Expiration Handling
 
-**Automatic Expiration**:
+**On-Chain Validation**:
 ```go
-// Check on approval attempt
-if time.Now().After(expiresAt) {
-    db.Exec("UPDATE pending_transfers SET status = 'EXPIRED' WHERE id = $1", pendingID)
-    return error("Transfer request has expired")
-}
-```
+// Check during ApproveTransfer execution
+timestamp, _ := ctx.GetStub().GetTxTimestamp()
+now := timestamp.Seconds
 
-**Cleanup Job** (Future Enhancement):
-```sql
--- Run periodically
-UPDATE pending_transfers 
-SET status = 'EXPIRED' 
-WHERE status = 'PENDING' 
-  AND expires_at < NOW();
+if now > pending.ExpiresAt {
+    pending.Status = "EXPIRED"
+    ctx.GetStub().PutState(key, pending)
+    return fmt.Errorf("transfer request has expired")
+}
 ```
 
 ---
