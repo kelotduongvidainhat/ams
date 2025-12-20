@@ -25,12 +25,6 @@ export default function PortfolioView({
                     <h2 className="text-2xl font-bold text-white mb-1">My Assets</h2>
                     <p className="text-slate-400 text-sm">Assets you currently own and control.</p>
                 </div>
-                <div className="text-right">
-                    <div className="text-sm text-slate-400 mb-1">Total Valuation</div>
-                    <div className="text-2xl font-bold text-emerald-400">
-                        ${assets.reduce((sum, a) => sum + (a.value || 0), 0).toLocaleString()}
-                    </div>
-                </div>
             </div>
 
             {assets.length === 0 ? (

@@ -1,5 +1,5 @@
 import type { Asset, User } from '../types';
-import { ShieldCheck, User as UserIcon, Box, Tag, DollarSign, ExternalLink, Eye } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Box, Tag, ExternalLink, Eye } from 'lucide-react';
 
 interface AssetCardProps {
     asset: Asset;
@@ -51,13 +51,6 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     <span className={`text-slate-200 ${isOwner ? 'font-bold text-blue-400' : ''}`}>
                         {asset.owner} {isOwner && '(You)'}
                     </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-slate-400">
-                    <div className="flex items-center gap-2">
-                        <DollarSign size={14} /> <span>Value</span>
-                    </div>
-                    <span className="text-emerald-400 font-medium">${(asset.value || 0).toLocaleString()}</span>
-
                 </div>
             </div>
 

@@ -43,22 +43,44 @@ ams/
 
 ### 2. Quy trình "Fresh Start" (Khởi chạy sạch)
 
-Để đảm bảo hệ thống chạy ổn định nhất, hãy làm theo quy trình Clean & Re-deploy đầy đủ sau:
+#### 🚀 Tự động hóa (Khuyến nghị)
+
+Sử dụng script tự động để thực hiện toàn bộ quy trình:
+
+```bash
+# Tại thư mục gốc ams/
+sudo ./scripts/fresh_start.sh
+```
+
+Script này sẽ tự động thực hiện **12 bước** bên dưới, bao gồm:
+- Dọn dẹp hệ thống cũ
+- Khởi động mạng Fabric + Deploy Chaincode
+- Đăng ký người dùng + Tạo ví (Wallet)
+- Khởi chạy ứng dụng + Khởi tạo Database
+- Tạo dữ liệu mẫu (Sample Assets)
+- Đồng bộ người dùng + Thiết lập mật khẩu
+
+#### 📋 Quy trình Thủ công (Manual Steps)
+
+Nếu bạn muốn thực hiện từng bước một, hãy làm theo hướng dẫn sau:
 
 **Bước 1: Dọn dẹp hệ thống cũ**
 ```bash
 # Tại thư mục gốc ams/
-docker-compose -f docker-compose-app.yaml down
+docker-compose -f docker-compose-app.yaml down --remove-orphans
 docker system prune -f --volumes # Xóa container và volume rác
 
 cd network
-# Tắt mạng lưới Fabric và xóa crypto material cũ
 ./network.sh down
+cd ..
+
+# Xóa MSP artifacts (nếu cần)
+sudo rm -rf network/organizations/fabric-ca/org1/msp network/organizations/fabric-ca/ordererOrg/msp
 ```
 
 **Bước 2: Khởi động Mạng lưới Fabric**
 ```bash
-# Tại thư mục network/
+cd network
 ./network.sh up
 ./network.sh createChannel -c mychannel
 ```
@@ -66,13 +88,13 @@ cd network
 **Bước 3: Deploy Chaincode (CCAAS)**
 ```bash
 ./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
+cd ..
 ```
 
-**Bước 3.5: Đăng ký Danh tính Người dùng (Real Identity)**
+**Bước 4: Đăng ký Danh tính Người dùng (Real Identity)**
 
 Trước khi khởi chạy ứng dụng, bạn cần đăng ký danh tính cho các người dùng thực để tạo ví (Wallet) dùng để ký giao dịch:
 ```bash
-# Cấp quyền thực thi
 chmod +x scripts/enrollUser.sh
 
 # Đăng ký các user mẫu (Tomoko, Brad, JinSoo, Max...)
@@ -84,37 +106,94 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh Michel password
 ```
 
-**Bước 3.6: Đăng ký người dùng mới (Qua API - WaaS)**
-
-Bạn cũng có thể đăng ký người dùng mới trực tiếp thông qua API mà không cần chạy script shell:
-
+**Bước 5: Khởi chạy Ứng dụng (App)**
 ```bash
-curl -X POST http://localhost:3000/api/wallet/register \
--H "Content-Type: application/json" \
--d '{"username": "NewUser", "password": "password", "full_name": "New User", "identity_number": "ID-NEW"}'
+docker-compose -f docker-compose-app.yaml up -d --build
 ```
 
-**Bước 4: Khởi chạy Ứng dụng (App)**
-```bash
-cd .. # Quay lại thư mục gốc ams/
-docker-compose -f docker-compose-app.yaml up --build -d
-```
+**Bước 6: Khởi tạo Database (Init Schema)**
 
-**Bước 5: Khởi tạo Database (Init Schema)**
-
-Để tính năng Explorer và lưu lịch sử hoạt động, cần nạp cấu trúc bảng vào PostgreSQL:
+Chờ khoảng 10s để container database khởi động hoàn tất, sau đó nạp cấu trúc bảng:
 ```bash
-# Chờ khoảng 10s để container database khởi động hoàn tất, sau đó chạy:
+sleep 10
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql
 ```
 
-**Bước 6: Kiểm tra Truy cập**
-*   **Frontend**: [http://localhost:5173](http://localhost:5173) (Đăng nhập với User ID: `Tomoko`, `Brad`...)
+**Bước 7: Tạo Dữ liệu Mẫu (Sample Data)**
+
+Tạo các tài sản mẫu cho người dùng:
+```bash
+./scripts/create_sample_data.sh
+```
+
+**Bước 8: Tạo Người dùng Test với Mật khẩu**
+
+Tạo tài khoản `demo_user` để test tính năng đăng nhập:
+```bash
+sleep 3 # Chờ backend sẵn sàng
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"id": "demo_user", "full_name": "Demo User", "identity_number": "DEMO001", "role": "User", "password": "demo123"}'
+```
+
+**Bước 9: Đồng bộ Người dùng từ Blockchain sang PostgreSQL**
+
+Đồng bộ tất cả người dùng từ Ledger sang database Off-chain:
+```bash
+./scripts/sync_users.sh
+```
+
+**Bước 10: Thiết lập Mật khẩu cho Tất cả Người dùng**
+
+Thêm mật khẩu cho các người dùng đã được đăng ký:
+```bash
+./scripts/add_passwords.sh
+```
+
+**Bước 11: Kiểm tra Truy cập**
+
+*   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
-*   **API Test (Real Identity)**:
-    ```bash
-    curl "http://localhost:3000/api/assets?user_id=Tomoko"
-    ```
+*   **Public Explorer**: [http://localhost:3000/api/explorer/assets](http://localhost:3000/api/explorer/assets)
+
+**Bước 12: Test Đăng nhập**
+
+```bash
+# Test JWT Authentication
+curl -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"Tomoko","password":"tomoko123"}'
+
+# Test Query Assets
+curl "http://localhost:3000/api/assets?user_id=Tomoko"
+```
+
+#### 🔐 Thông tin Đăng nhập
+
+Sau khi hoàn tất Fresh Start, bạn có thể đăng nhập với các tài khoản sau:
+
+| Username | Password | Role | Wallet |
+|----------|----------|------|--------|
+| `demo_user` | `demo123` | User | ✓ |
+| `Tomoko` | `tomoko123` | User | ✓ |
+| `Brad` | `brad123` | User | ✓ |
+| `JinSoo` | `jinsoo123` | User | ✓ |
+| `Max` | `max123` | User | ✓ |
+| `Adriana` | `adriana123` | User | ✓ |
+| `Michel` | `michel123` | User | ✓ |
+| `admin` | `admin123` | Admin | ✓ |
+| `auditor` | `auditor123` | Auditor | ✓ |
+| `user01` | `user01123` | User | ✓ |
+
+#### 🆕 Đăng ký Người dùng Mới (Qua API - WaaS)
+
+Bạn cũng có thể đăng ký người dùng mới trực tiếp thông qua API:
+
+```bash
+curl -X POST http://localhost:3000/api/wallet/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "NewUser", "password": "password", "full_name": "New User", "identity_number": "ID-NEW"}'
+```
 
 ##  Thiết kế Hệ thống Mở rộng (System Design Spec)
 

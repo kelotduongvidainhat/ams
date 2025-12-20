@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getRecentTransactions, type Transaction } from '../../services/api';
-import { Clock, ArrowRight, Package, TrendingUp, Activity } from 'lucide-react';
+import { Clock, ArrowRight, Package, Activity } from 'lucide-react';
 
 export default function TransactionHistory() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -117,15 +117,6 @@ export default function TransactionHistory() {
                                         <div className="flex items-center gap-2 text-sm text-slate-400">
                                             <ArrowRight className="w-3 h-3" />
                                             <span>Owner: {tx.to_owner}</span>
-                                        </div>
-                                    )}
-
-                                    {tx.value > 0 && (
-                                        <div className="flex items-center gap-2 text-sm mt-1">
-                                            <TrendingUp className="w-3 h-3 text-emerald-400" />
-                                            <span className="text-emerald-400 font-mono">
-                                                ${tx.value.toLocaleString()}
-                                            </span>
                                         </div>
                                     )}
                                 </div>

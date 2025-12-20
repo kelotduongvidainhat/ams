@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createAsset } from '../services/api';
 import type { User } from '../types';
-import { X, Box, Tag, DollarSign, Link, Loader2, Save } from 'lucide-react';
+import { X, Box, Tag, Link, Loader2, Save } from 'lucide-react';
 
 interface CreateAssetModalProps {
     onClose: () => void;
@@ -16,7 +16,6 @@ export default function CreateAssetModal({ onClose, onSuccess, currentUser }: Cr
         name: '',
         type: 'Electronics',
         owner: currentUser.id, // Auto-fill
-        value: 0,
         status: 'Available',
         metadata_url: ''
     });
@@ -34,7 +33,6 @@ export default function CreateAssetModal({ onClose, onSuccess, currentUser }: Cr
                 name: formData.name,
                 type: formData.type,
                 owner: formData.owner,
-                value: Number(formData.value),
                 status: formData.status,
                 metadata_url: formData.metadata_url
             });
@@ -97,26 +95,13 @@ export default function CreateAssetModal({ onClose, onSuccess, currentUser }: Cr
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">Owner</label>
-                            <input
-                                name="owner" value={formData.owner} onChange={handleChange}
-                                type="text" required placeholder="Owner Name"
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">Value ($)</label>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
-                                <input
-                                    name="value" value={formData.value} onChange={handleChange}
-                                    type="number" required placeholder="0"
-                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                                />
-                            </div>
-                        </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">Owner</label>
+                        <input
+                            name="owner" value={formData.owner} onChange={handleChange}
+                            type="text" required placeholder="Owner Name"
+                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                        />
                     </div>
 
                     <div>

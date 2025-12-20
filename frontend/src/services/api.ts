@@ -107,7 +107,6 @@ export interface Transaction {
     asset_type: string;
     action_type: string;
     to_owner: string;
-    value: number;
     timestamp: string;
 }
 
