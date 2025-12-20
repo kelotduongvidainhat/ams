@@ -74,6 +74,7 @@ export default function ExplorerView({
                             currentUser={currentUser}
                             onTransfer={() => { }} // Disabled
                             onShare={() => { }}    // Disabled
+                            onEdit={() => { }}     // Disabled
                             onHistory={onHistory}
                         />
                     ))}

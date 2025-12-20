@@ -7,6 +7,7 @@ interface PortfolioViewProps {
     onTransfer: (asset: Asset) => void;
     onHistory: (asset: Asset) => void;
     onShare: (asset: Asset) => void;
+    onEdit: (asset: Asset) => void;
     onCreate: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function PortfolioView({
     onTransfer,
     onHistory,
     onShare,
+    onEdit,
     onCreate
 }: PortfolioViewProps) {
     return (
@@ -44,6 +46,7 @@ export default function PortfolioView({
                             onTransfer={onTransfer}
                             onHistory={onHistory}
                             onShare={onShare}
+                            onEdit={onEdit}
                         />
                     ))}
                 </div>

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { getAssets } from '../services/api';
+import { getAssets, getPendingTransfers } from '../services/api';
 import type { Asset, User } from '../types';
 import Navbar from '../components/Navbar';
 import CreateAssetModal from '../components/CreateAssetModal';
+import EditAssetModal from '../components/EditAssetModal';
 import TransferModal from '../components/TransferModal';
 import HistoryModal from '../components/HistoryModal';
 import ShareModal from '../components/ShareModal';
+import PendingTransfersModal from '../components/PendingTransfersModal';
 import { Loader2, AlertCircle, LayoutGrid, Globe } from 'lucide-react';
 
 import PortfolioView from '../components/dashboard/PortfolioView';
@@ -21,12 +23,15 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer'>('portfolio');
+    const [pendingCount, setPendingCount] = useState(0);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAssetForTransfer, setSelectedAssetForTransfer] = useState<Asset | null>(null);
     const [selectedAssetForHistory, setSelectedAssetForHistory] = useState<Asset | null>(null);
     const [selectedAssetForShare, setSelectedAssetForShare] = useState<Asset | null>(null);
+    const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<Asset | null>(null);
+    const [showPendingTransfers, setShowPendingTransfers] = useState(false);
 
     // Initial Tab Selection based on Role
     useEffect(() => {
@@ -37,6 +42,10 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
 
     useEffect(() => {
         fetchData();
+        fetchPendingCount();
+        // Poll for pending transfers every 30 seconds
+        const interval = setInterval(fetchPendingCount, 30000);
+        return () => clearInterval(interval);
     }, [currentUser]);
 
     const fetchData = async () => {
@@ -48,6 +57,15 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPendingCount = async () => {
+        try {
+            const pending = await getPendingTransfers();
+            setPendingCount(pending.length);
+        } catch (err) {
+            console.error('Failed to fetch pending transfers:', err);
         }
     };
 
@@ -64,7 +82,13 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
 
     return (
         <>
-            <Navbar onCreateAsset={() => setIsModalOpen(true)} onLogout={onLogout} currentUser={currentUser} />
+            <Navbar
+                onCreateAsset={() => setIsModalOpen(true)}
+                onLogout={onLogout}
+                onViewPendingTransfers={() => setShowPendingTransfers(true)}
+                pendingCount={pendingCount}
+                currentUser={currentUser}
+            />
 
             {/* Sub-Navigation Tabs */}
             <div className="border-b border-white/5 bg-slate-900/50 backdrop-blur-sm sticky top-16 z-30">
@@ -118,6 +142,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                                 onTransfer={(a) => setSelectedAssetForTransfer(a)}
                                 onHistory={(a) => setSelectedAssetForHistory(a)}
                                 onShare={(a) => setSelectedAssetForShare(a)}
+                                onEdit={(a) => setSelectedAssetForEdit(a)}
                                 onCreate={() => setIsModalOpen(true)}
                             />
                         )}
@@ -167,6 +192,27 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                         assetId={selectedAssetForShare.ID}
                         onClose={() => setSelectedAssetForShare(null)}
                         onSuccess={() => fetchData()}
+                    />
+                )}
+
+                {selectedAssetForEdit && (
+                    <EditAssetModal
+                        asset={selectedAssetForEdit}
+                        onClose={() => setSelectedAssetForEdit(null)}
+                        onSuccess={() => {
+                            setSelectedAssetForEdit(null);
+                            fetchData();
+                        }}
+                    />
+                )}
+
+                {showPendingTransfers && (
+                    <PendingTransfersModal
+                        onClose={() => setShowPendingTransfers(false)}
+                        onSuccess={() => {
+                            fetchData();
+                            fetchPendingCount();
+                        }}
                     />
                 )}
             </div>

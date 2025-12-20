@@ -109,6 +109,7 @@ export default function AuditorDashboard({ currentUser }: AuditorDashboardProps)
                             currentUser={currentUser}
                             onTransfer={() => { }} // Disabled for Auditor
                             onShare={() => { }}    // Disabled for Auditor
+                            onEdit={() => { }}     // Disabled for Auditor
                             onHistory={(a) => setSelectedAssetId(a.ID)}
                         />
                     ))}

@@ -7,7 +7,9 @@ Dự án triển khai mạng lưới blockchain riêng tư sử dụng **Hyperle
 *   **Kiến trúc mạng lưới**: 1 Organization, 3 Orderers (Raft Consensus), 3 Peers.
 *   **Chaincode-as-a-Service (CCAAS)**: Chaincode chạy dưới dạng Docker container độc lập, loại bỏ sự phụ thuộc vào Docker-in-Docker của Peer, tăng tính ổn định và dễ dàng debug.
 *   **Tự động hóa**: Scripts thông minh tự động hóa toàn bộ quy trình từ khởi tạo mạng, tạo channel đến deploy chaincode.
-*   **Asset Management**: Tích hợp sẵn chaincode quản lý tài sản thương mại (ID, Name, Type, Owner, Value, Status).
+*   **Asset Management**: Tích hợp sẵn chaincode quản lý tài sản thương mại (ID, Name, Type, Owner, Status, Metadata).
+*   **Multi-Signature Transfers**: Chuyển giao tài sản yêu cầu xác nhận từ 2 bên (người gửi + người nhận) với thời hạn 24 giờ.
+*   **Wallet-as-a-Service**: Đăng ký người dùng mới trực tiếp qua API, tự động tạo ví blockchain.
 
 ## 📂 Cấu trúc dự án
 

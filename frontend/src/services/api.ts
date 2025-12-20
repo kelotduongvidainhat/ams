@@ -42,7 +42,7 @@ export const getAssets = async (userId?: string, role?: string): Promise<Asset[]
 };
 
 export const grantAccess = async (id: string, viewerId: string) => {
-    const response = await api.post(`/assets/${id}/access`, { viewer_id: viewerId });
+    const response = await api.post(`/protected/assets/${id}/access`, { viewer_id: viewerId });
     return response.data;
 };
 
@@ -84,10 +84,35 @@ export const getAssetHistory = async (id: string): Promise<AssetHistory[]> => {
     return response.data;
 };
 
-export const transferAsset = async (id: string, newOwner: string) => {
-    const response = await api.put(`/assets/${id}/transfer`, { new_owner: newOwner });
+// Multi-Signature Transfer Functions
+export const initiateTransfer = async (assetId: string, newOwner: string) => {
+    const response = await api.post('/protected/transfers/initiate', {
+        asset_id: assetId,
+        new_owner: newOwner
+    });
     return response.data;
 };
+
+export const getPendingTransfers = async () => {
+    const response = await api.get('/protected/transfers/pending');
+    return response.data;
+};
+
+export const approveTransfer = async (pendingId: number) => {
+    const response = await api.post(`/protected/transfers/${pendingId}/approve`);
+    return response.data;
+};
+
+export const rejectTransfer = async (pendingId: number, reason: string) => {
+    const response = await api.post(`/protected/transfers/${pendingId}/reject`, { reason });
+    return response.data;
+};
+
+export const updateAsset = async (id: string, updates: { name: string; status: string; metadata_url: string }) => {
+    const response = await api.put(`/protected/assets/${id}`, updates);
+    return response.data;
+};
+
 
 // --- Explorer API (Postgres) ---
 export const searchAssets = async (query: string, owner?: string, type?: string): Promise<Asset[]> => {

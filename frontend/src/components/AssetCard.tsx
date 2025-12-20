@@ -1,5 +1,5 @@
 import type { Asset, User } from '../types';
-import { ShieldCheck, User as UserIcon, Box, Tag, ExternalLink, Eye } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Box, Tag, ExternalLink, Eye, Edit } from 'lucide-react';
 
 interface AssetCardProps {
     asset: Asset;
@@ -7,9 +7,10 @@ interface AssetCardProps {
     onTransfer: (asset: Asset) => void;
     onHistory: (asset: Asset) => void;
     onShare: (asset: Asset) => void;
+    onEdit: (asset: Asset) => void;
 }
 
-export default function AssetCard({ asset, currentUser, onTransfer, onHistory, onShare }: AssetCardProps) {
+export default function AssetCard({ asset, currentUser, onTransfer, onHistory, onShare, onEdit }: AssetCardProps) {
     const statusColors: Record<string, string> = {
         'Available': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         'Sold': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -72,15 +73,24 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     </a>
                 )}
 
-                <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="grid grid-cols-4 gap-2 mt-2">
                     {currentUser.role === 'Auditor' ? (
                         <button
                             onClick={() => onHistory(asset)}
-                            className="col-span-3 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold uppercase tracking-wide transition-all flex items-center justify-center gap-2">
+                            className="col-span-4 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold uppercase tracking-wide transition-all flex items-center justify-center gap-2">
                             <ShieldCheck size={16} /> Verify & Audit History
                         </button>
                     ) : (
                         <>
+                            <button
+                                onClick={() => onEdit(asset)}
+                                disabled={!isOwner}
+                                className={`py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 ${isOwner
+                                    ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20 cursor-pointer'
+                                    : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed opacity-50'
+                                    }`}>
+                                <Edit size={14} /> Edit
+                            </button>
                             <button
                                 onClick={() => onTransfer(asset)}
                                 disabled={!isOwner}
