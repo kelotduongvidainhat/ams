@@ -54,3 +54,14 @@ go run main.go
 *   **Logic**:
     1.  Tính SHA-256 Hash từ `metadata_url` + `name` (Giả lập logic tính hash file).
     2.  Gửi giao dịch `CreateAsset` lên Blockchain với Hash vừa tạo.
+
+### 6. Admin Service (Protected)
+Requires JWT Token with `role: Admin`.
+
+*   **Dashboard Stats**:
+    *   **URL**: `GET /api/protected/admin/dashboard`
+    *   **Response**: `{"total_users": 10, "total_assets": 50, "pending_transfers": 2}`
+
+*   **Manage Users**:
+    *   **URL**: `GET /api/protected/admin/users`
+    *   **Response**: List of users with wallet status and identity details.

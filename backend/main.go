@@ -15,6 +15,7 @@ import (
 	"ams/backend/fabric"
 	"ams/backend/sync"
 	"ams/backend/auth"
+	"ams/backend/admin"
 )
 
 
@@ -318,6 +319,9 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		c.Locals("user", claims)
 		return c.Next()
 	})
+
+	// --- ADMIN SERVICE ---
+	admin.RegisterRoutes(protected, pgDB)
 
 	
 	// Create Asset (Protected)
