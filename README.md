@@ -197,6 +197,284 @@ curl -X POST http://localhost:3000/api/wallet/register \
   -d '{"username": "NewUser", "password": "password", "full_name": "New User", "identity_number": "ID-NEW"}'
 ```
 
+## 🔄 Luồng Giao dịch (Transaction Flows)
+
+### 1️⃣ **Tạo Tài sản (Create Asset)**
+
+**Mô tả**: Người dùng tạo tài sản mới trên blockchain.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User (Tomoko)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend API
+    participant Fabric as 🔗 Blockchain
+    participant DB as 💾 PostgreSQL
+
+    User->>Frontend: Click "Create Asset"
+    Frontend->>Frontend: Fill form (Name, Type, Metadata)
+    Frontend->>Backend: POST /protected/assets
+    Backend->>Backend: Verify JWT Token
+    Backend->>Backend: Calculate metadata_hash
+    Backend->>Fabric: SubmitTransaction("CreateAsset")
+    Fabric->>Fabric: Validate & Write to Ledger
+    Fabric-->>Backend: Transaction Success
+    Backend-->>Frontend: 201 Created
+    
+    Note over Fabric,DB: Async Event Listener
+    Fabric->>DB: Event: AssetCreated
+    DB->>DB: INSERT INTO assets
+    Frontend->>Frontend: Refresh asset list
+```
+
+**API Endpoint**: `POST /api/protected/assets`
+
+**Request Body**:
+```json
+{
+  "ID": "asset101",
+  "name": "Luxury Penthouse",
+  "type": "RealEstate",
+  "metadata_url": "https://ipfs.io/ipfs/Qm..."
+}
+```
+
+**Kết quả**:
+- ✅ Tài sản được ghi vào blockchain
+- ✅ Metadata hash được tự động tính toán
+- ✅ Owner được set là người tạo
+- ✅ Đồng bộ vào PostgreSQL qua event listener
+
+---
+
+### 2️⃣ **Chuyển giao Tài sản - Multi-Signature (Transfer Asset)**
+
+**Mô tả**: Chuyển giao tài sản yêu cầu xác nhận từ **2 bên** (người gửi + người nhận) trong vòng **24 giờ**.
+
+```mermaid
+sequenceDiagram
+    participant Tomoko as 👤 Tomoko (Owner)
+    participant Brad as 👤 Brad (Recipient)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend API
+    participant DB as 💾 PostgreSQL
+    participant Fabric as 🔗 Blockchain
+
+    Note over Tomoko,Fabric: Phase 1: Initiate Transfer
+    Tomoko->>Frontend: Click "Transfer" on asset101
+    Frontend->>Frontend: Enter new owner: Brad
+    Frontend->>Backend: POST /protected/transfers/initiate
+    Backend->>Backend: Verify Tomoko owns asset101
+    Backend->>DB: INSERT INTO pending_transfers
+    Backend->>DB: INSERT signature (Tomoko, APPROVED)
+    Backend-->>Frontend: Pending ID: 1, Status: PENDING (1/2)
+    Frontend-->>Tomoko: "Transfer initiated! Awaiting Brad's approval"
+
+    Note over Brad,Fabric: Phase 2: Notification
+    Brad->>Frontend: Login & see notification bell 🔔
+    Frontend->>Backend: GET /protected/transfers/pending
+    Backend->>DB: SELECT pending_transfers WHERE new_owner=Brad
+    Backend-->>Frontend: [{ id: 1, asset: asset101, from: Tomoko }]
+    Frontend-->>Brad: Show pending transfer with countdown
+
+    Note over Brad,Fabric: Phase 3: Approval & Execution
+    Brad->>Frontend: Click "Approve Transfer"
+    Frontend->>Backend: POST /protected/transfers/1/approve
+    Backend->>DB: INSERT signature (Brad, APPROVED)
+    Backend->>DB: Check approval_count = 2/2 ✓
+    Backend->>Fabric: SubmitTransaction("TransferAsset", asset101, Brad)
+    Fabric->>Fabric: Update owner to Brad
+    Fabric-->>Backend: Success
+    Backend->>DB: UPDATE pending_transfers SET status=EXECUTED
+    Backend-->>Frontend: "Transfer executed!"
+    
+    Fabric->>DB: Event: AssetTransferred
+    DB->>DB: UPDATE assets SET owner=Brad
+    DB->>DB: INSERT INTO asset_history
+    
+    Frontend->>Frontend: Refresh both users' portfolios
+```
+
+**Timeline**:
+- **T+0**: Tomoko initiates → Auto-approved (1/2)
+- **T+1 min to 24h**: Brad approves → Executes immediately ✅
+- **T+24h**: Expires if not approved ❌
+
+**API Endpoints**:
+1. `POST /api/protected/transfers/initiate` - Khởi tạo
+2. `GET /api/protected/transfers/pending` - Xem pending
+3. `POST /api/protected/transfers/:id/approve` - Chấp nhận
+4. `POST /api/protected/transfers/:id/reject` - Từ chối
+
+**Database Tables**:
+```sql
+pending_transfers (
+  id, asset_id, current_owner, new_owner, 
+  status, created_at, expires_at
+)
+
+transfer_signatures (
+  pending_transfer_id, signer_id, signer_role,
+  action, signed_at
+)
+```
+
+---
+
+### 3️⃣ **Cập nhật Tài sản (Update Asset)**
+
+**Mô tả**: Chủ sở hữu hoặc Admin có thể cập nhật thông tin tài sản.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 Owner
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+    participant DB as 💾 PostgreSQL
+
+    User->>Frontend: Click "Edit" on asset
+    Frontend->>Frontend: Show EditAssetModal
+    User->>Frontend: Update name, status, metadata_url
+    Frontend->>Backend: PUT /protected/assets/:id
+    Backend->>Backend: Verify ownership
+    Backend->>Backend: Recalculate metadata_hash
+    Backend->>Fabric: SubmitTransaction("UpdateAsset")
+    Fabric->>Fabric: Update asset on ledger
+    Fabric-->>Backend: Success
+    Backend-->>Frontend: "Asset updated!"
+    
+    Fabric->>DB: Event: AssetUpdated
+    DB->>DB: UPDATE assets
+    DB->>DB: INSERT INTO asset_history
+```
+
+**Editable Fields**:
+- ✅ `name` - Tên tài sản
+- ✅ `status` - Trạng thái (Available, Locked, Under Maintenance)
+- ✅ `metadata_url` - URL metadata (auto-recalculates hash)
+
+**Immutable Fields**:
+- ❌ `ID` - Không thể thay đổi
+- ❌ `type` - Không thể thay đổi
+- ❌ `owner` - Chỉ thay đổi qua Transfer
+
+---
+
+### 4️⃣ **Chia sẻ Quyền xem (Grant Access)**
+
+**Mô tả**: Cho phép người dùng khác xem tài sản riêng tư.
+
+```mermaid
+sequenceDiagram
+    participant Owner as 👤 Owner (Tomoko)
+    participant Viewer as 👤 Viewer (Brad)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+
+    Owner->>Frontend: Click "Share" on asset
+    Frontend->>Frontend: Enter viewer ID: Brad
+    Frontend->>Backend: POST /protected/assets/:id/access
+    Backend->>Fabric: SubmitTransaction("GrantAccess", assetID, Brad)
+    Fabric->>Fabric: Add Brad to viewers[]
+    Fabric-->>Backend: Success
+    Backend-->>Frontend: "Access granted!"
+    
+    Note over Viewer: Brad can now view the asset
+    Viewer->>Frontend: Login & view assets
+    Frontend->>Backend: GET /api/assets?user_id=Brad
+    Backend->>Fabric: GetAllAssets (filtered by Brad)
+    Fabric-->>Backend: [assets where owner=Brad OR Brad in viewers]
+    Backend-->>Frontend: Asset list
+```
+
+**Access Control**:
+- `viewers: []` - Private (chỉ owner)
+- `viewers: ["Brad"]` - Brad có thể xem
+- `viewers: ["EVERYONE"]` - Public
+
+---
+
+### 5️⃣ **Xem Lịch sử (View History)**
+
+**Mô tả**: Xem toàn bộ lịch sử thay đổi của tài sản từ blockchain.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User/Auditor
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+
+    User->>Frontend: Click "History" on asset
+    Frontend->>Backend: GET /api/assets/:id/history
+    Backend->>Fabric: GetAssetHistory(assetID)
+    Fabric->>Fabric: Query all blocks for asset
+    Fabric-->>Backend: [{ txId, timestamp, record }]
+    Backend-->>Frontend: History array
+    Frontend->>Frontend: Display timeline
+```
+
+**History Record**:
+```json
+{
+  "tx_id": "abc123...",
+  "timestamp": "2025-12-20T08:00:00Z",
+  "is_delete": false,
+  "record": {
+    "ID": "asset101",
+    "name": "Luxury Penthouse",
+    "owner": "Tomoko",
+    "status": "Available"
+  }
+}
+```
+
+---
+
+### 6️⃣ **Public Explorer**
+
+**Mô tả**: Xem tất cả tài sản công khai từ PostgreSQL (không cần đăng nhập).
+
+```mermaid
+sequenceDiagram
+    participant Public as 🌐 Public User
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant DB as 💾 PostgreSQL
+
+    Public->>Frontend: Access http://localhost:5173
+    Frontend->>Frontend: Navigate to "Public Explorer"
+    Frontend->>Backend: GET /api/explorer/assets
+    Backend->>DB: SELECT * FROM assets LIMIT 50
+    DB-->>Backend: Asset list
+    Backend-->>Frontend: JSON response
+    Frontend->>Frontend: Display asset cards
+```
+
+**Features**:
+- ✅ No authentication required
+- ✅ Search by name, owner, type
+- ✅ View transaction history
+- ✅ Real-time updates (synced from blockchain)
+
+---
+
+### 📊 **Transaction Summary Table**
+
+| Operation | Endpoint | Auth | Multi-Sig | Blockchain | Database |
+|-----------|----------|------|-----------|------------|----------|
+| Create Asset | `POST /protected/assets` | ✅ | ❌ | ✅ Write | ✅ Sync |
+| Transfer Asset | `POST /protected/transfers/initiate` | ✅ | ✅ 2/2 | ✅ Write | ✅ Pending |
+| Approve Transfer | `POST /protected/transfers/:id/approve` | ✅ | ✅ | ✅ Execute | ✅ Update |
+| Update Asset | `PUT /protected/assets/:id` | ✅ | ❌ | ✅ Write | ✅ Sync |
+| Grant Access | `POST /protected/assets/:id/access` | ✅ | ❌ | ✅ Write | ❌ |
+| View History | `GET /api/assets/:id/history` | ❌ | ❌ | ✅ Read | ❌ |
+| Explorer | `GET /api/explorer/assets` | ❌ | ❌ | ❌ | ✅ Read |
+
+---
+
 ##  Thiết kế Hệ thống Mở rộng (System Design Spec)
 
 Dưới đây là đặc tả mô hình dữ liệu cho các phiên bản phát triển tiếp theo:
