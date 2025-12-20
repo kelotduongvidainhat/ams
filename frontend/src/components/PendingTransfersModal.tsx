@@ -3,14 +3,13 @@ import { getPendingTransfers, approveTransfer, rejectTransfer } from '../service
 import { X, Clock, CheckCircle2, XCircle, Package, User, ArrowRight, Loader2 } from 'lucide-react';
 
 interface PendingTransfer {
-    id: number;
     asset_id: string;
     asset_name: string;
     current_owner: string;
     new_owner: string;
     status: string;
-    created_at: string;
-    expires_at: string;
+    created_at: number; // Unix timestamp from blockchain
+    expires_at: number; // Unix timestamp from blockchain
     approval_count: number;
     has_signed: boolean;
     is_recipient: boolean;
@@ -24,7 +23,7 @@ interface PendingTransfersModalProps {
 export default function PendingTransfersModal({ onClose, onSuccess }: PendingTransfersModalProps) {
     const [transfers, setTransfers] = useState<PendingTransfer[]>([]);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState<number | null>(null);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         fetchPendingTransfers();
@@ -41,10 +40,10 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
         }
     };
 
-    const handleApprove = async (id: number) => {
-        setActionLoading(id);
+    const handleApprove = async (assetId: string) => {
+        setActionLoading(assetId);
         try {
-            const result = await approveTransfer(id);
+            const result = await approveTransfer(assetId);
             alert(result.message);
             onSuccess();
             fetchPendingTransfers();
@@ -55,13 +54,13 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
         }
     };
 
-    const handleReject = async (id: number) => {
+    const handleReject = async (assetId: string) => {
         const reason = prompt('Reason for rejection (optional):');
         if (reason === null) return; // User cancelled
 
-        setActionLoading(id);
+        setActionLoading(assetId);
         try {
-            const result = await rejectTransfer(id, reason || 'No reason provided');
+            const result = await rejectTransfer(assetId, reason || 'No reason provided');
             alert(result.message);
             onSuccess();
             fetchPendingTransfers();
@@ -72,10 +71,10 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
         }
     };
 
-    const getTimeRemaining = (expiresAt: string) => {
-        const now = new Date();
-        const expiry = new Date(expiresAt);
-        const diff = expiry.getTime() - now.getTime();
+    const getTimeRemaining = (expiresAtUnix: number) => {
+        const now = Date.now();
+        const expiry = expiresAtUnix * 1000; // Convert Unix timestamp to milliseconds
+        const diff = expiry - now;
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -112,7 +111,7 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
                         <div className="space-y-4">
                             {transfers.map((transfer) => (
                                 <div
-                                    key={transfer.id}
+                                    key={transfer.asset_id}
                                     className="glass-panel p-5 rounded-xl border border-white/10 hover:border-amber-500/30 transition-all"
                                 >
                                     {/* Header */}
@@ -158,11 +157,11 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
                                     {!transfer.has_signed && transfer.is_recipient && (
                                         <div className="flex gap-3">
                                             <button
-                                                onClick={() => handleApprove(transfer.id)}
-                                                disabled={actionLoading === transfer.id}
+                                                onClick={() => handleApprove(transfer.asset_id)}
+                                                disabled={actionLoading === transfer.asset_id}
                                                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {actionLoading === transfer.id ? (
+                                                {actionLoading === transfer.asset_id ? (
                                                     <Loader2 className="animate-spin w-4 h-4" />
                                                 ) : (
                                                     <>
@@ -172,11 +171,11 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
                                                 )}
                                             </button>
                                             <button
-                                                onClick={() => handleReject(transfer.id)}
-                                                disabled={actionLoading === transfer.id}
+                                                onClick={() => handleReject(transfer.asset_id)}
+                                                disabled={actionLoading === transfer.asset_id}
                                                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium shadow-lg shadow-red-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {actionLoading === transfer.id ? (
+                                                {actionLoading === transfer.asset_id ? (
                                                     <Loader2 className="animate-spin w-4 h-4" />
                                                 ) : (
                                                     <>

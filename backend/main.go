@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"os"
 	"github.com/gofiber/fiber/v2"
@@ -374,14 +373,16 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 	})
 	
 	
-	// Initiate Transfer (Multi-Sig) - Creates pending transfer requiring 2 approvals
-	protected.Post("/transfers/initiate", func(c *fiber.Ctx) error {
-		if pgDB == nil {
-			return c.Status(503).JSON(fiber.Map{"error": "Database not available"})
-		}
+	// ========== MULTI-SIGNATURE TRANSFERS (CHAINCODE-BASED) ==========
+	// All multi-sig logic is now in the chaincode for true blockchain security
+	// Backend acts as a simple relay to the blockchain
 
+	// Initiate Transfer - Creates pending transfer on blockchain
+	protected.Post("/transfers/initiate", func(c *fiber.Ctx) error {
 		contract, err := getContract(c)
-		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
+		if err != nil { 
+			return c.Status(401).JSON(fiber.Map{"error": err.Error()}) 
+		}
 		
 		type InitiateTransferRequest struct {
 			AssetID  string `json:"asset_id"`
@@ -392,56 +393,26 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
 
+		// Validate inputs
+		if p.AssetID == "" || p.NewOwner == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "asset_id and new_owner are required"})
+		}
+
 		claims := c.Locals("user").(*auth.Claims)
+		log.Printf("📝 Initiating transfer: Asset %s from %s to %s", p.AssetID, claims.UserID, p.NewOwner)
 
-		// Get asset to verify ownership and get name
-		evaluateResult, err := contract.EvaluateTransaction("ReadAsset", p.AssetID)
+		// Call chaincode - pass current user as initiator
+		_, err = contract.SubmitTransaction("InitiateTransfer", p.AssetID, p.NewOwner, claims.UserID)
 		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Asset not found"})
+			log.Printf("❌ Transfer initiation failed: %v", err)
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		var asset map[string]interface{}
-		if err := json.Unmarshal(evaluateResult, &asset); err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse asset"})
-		}
-
-		// Only current owner can initiate transfer
-		if asset["owner"] != claims.UserID {
-			return c.Status(403).JSON(fiber.Map{"error": "Only asset owner can initiate transfer"})
-		}
-
-		// Cannot transfer to self
-		if p.NewOwner == claims.UserID {
-			return c.Status(400).JSON(fiber.Map{"error": "Cannot transfer to yourself"})
-		}
-
-		// Create pending transfer
-		var pendingID int
-		err = pgDB.QueryRow(`
-			INSERT INTO pending_transfers (asset_id, asset_name, current_owner, new_owner, status)
-			VALUES ($1, $2, $3, $4, 'PENDING')
-			RETURNING id
-		`, p.AssetID, asset["name"], claims.UserID, p.NewOwner).Scan(&pendingID)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to create pending transfer: " + err.Error()})
-		}
-
-		// Auto-approve by initiator (current owner)
-		_, err = pgDB.Exec(`
-			INSERT INTO transfer_signatures (pending_transfer_id, signer_id, signer_role, action, comment)
-			VALUES ($1, $2, 'CURRENT_OWNER', 'APPROVED', 'Initiated transfer')
-		`, pendingID, claims.UserID)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to record signature: " + err.Error()})
-		}
-
-		log.Printf("📝 Transfer initiated: Asset %s from %s to %s (Pending ID: %d)", p.AssetID, claims.UserID, p.NewOwner, pendingID)
+		log.Printf("✅ Transfer initiated on blockchain: Asset %s", p.AssetID)
 
 		return c.JSON(fiber.Map{
-			"message": "Transfer initiated. Awaiting approval from recipient.",
-			"pending_id": pendingID,
+			"message": "Transfer initiated on blockchain. Awaiting recipient approval.",
+			"asset_id": p.AssetID,
 			"status": "PENDING",
 			"expires_in_hours": 24,
 		})
@@ -471,185 +442,97 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "Access granted successfully"})
 	})
 
-	// Get Pending Transfers (for current user)
+	// Get Pending Transfers - Query from blockchain
 	protected.Get("/transfers/pending", func(c *fiber.Ctx) error {
-		if pgDB == nil {
-			return c.Status(503).JSON(fiber.Map{"error": "Database not available"})
+		contract, err := getContract(c)
+		if err != nil { 
+			return c.Status(401).JSON(fiber.Map{"error": err.Error()}) 
 		}
 
 		claims := c.Locals("user").(*auth.Claims)
 
-		query := `
-			SELECT pt.id, pt.asset_id, pt.asset_name, pt.current_owner, pt.new_owner, 
-			       pt.status, pt.created_at, pt.expires_at,
-			       COALESCE(
-			           (SELECT COUNT(*) FROM transfer_signatures 
-			            WHERE pending_transfer_id = pt.id AND action = 'APPROVED'), 0
-			       ) as approval_count
-			FROM pending_transfers pt
-			WHERE (pt.current_owner = $1 OR pt.new_owner = $1)
-			  AND pt.status = 'PENDING'
-			  AND pt.expires_at > NOW()
-			ORDER BY pt.created_at DESC
-		`
-
-		rows, err := pgDB.Query(query, claims.UserID)
+		// Query all pending transfers from blockchain
+		result, err := contract.EvaluateTransaction("GetAllPendingTransfers")
 		if err != nil {
+			log.Printf("❌ Failed to get pending transfers: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch pending transfers: " + err.Error()})
 		}
-		defer rows.Close()
 
-		var transfers []map[string]interface{}
-		for rows.Next() {
-			var id int
-			var assetID, assetName, currentOwner, newOwner, status, createdAt, expiresAt string
-			var approvalCount int
+		var allPending []map[string]interface{}
+		if err := json.Unmarshal(result, &allPending); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse pending transfers"})
+		}
 
-			err := rows.Scan(&id, &assetID, &assetName, &currentOwner, &newOwner, &status, &createdAt, &expiresAt, &approvalCount)
-			if err != nil {
-				continue
+		// Filter for current user (either as current_owner or new_owner)
+		var userPending []map[string]interface{}
+		for _, p := range allPending {
+			currentOwner, _ := p["current_owner"].(string)
+			newOwner, _ := p["new_owner"].(string)
+			
+			if currentOwner == claims.UserID || newOwner == claims.UserID {
+				// Add helper fields for frontend
+				approvals, _ := p["approvals"].([]interface{})
+				p["approval_count"] = len(approvals)
+				p["is_recipient"] = (newOwner == claims.UserID)
+				
+				// Check if user has already signed
+				hasSigned := false
+				for _, approval := range approvals {
+					if approvalMap, ok := approval.(map[string]interface{}); ok {
+						if signer, ok := approvalMap["signer"].(string); ok && signer == claims.UserID {
+							hasSigned = true
+							break
+						}
+					}
+				}
+				p["has_signed"] = hasSigned
+				
+				userPending = append(userPending, p)
 			}
-
-			// Check if current user has already signed
-			var hasSigned bool
-			pgDB.QueryRow(`
-				SELECT EXISTS(SELECT 1 FROM transfer_signatures 
-				WHERE pending_transfer_id = $1 AND signer_id = $2)
-			`, id, claims.UserID).Scan(&hasSigned)
-
-			transfers = append(transfers, map[string]interface{}{
-				"id":             id,
-				"asset_id":       assetID,
-				"asset_name":     assetName,
-				"current_owner":  currentOwner,
-				"new_owner":      newOwner,
-				"status":         status,
-				"created_at":     createdAt,
-				"expires_at":     expiresAt,
-				"approval_count": approvalCount,
-				"has_signed":     hasSigned,
-				"is_recipient":   newOwner == claims.UserID,
-			})
 		}
 
-		if transfers == nil {
-			transfers = []map[string]interface{}{}
+		if userPending == nil {
+			userPending = []map[string]interface{}{}
 		}
 
-		return c.JSON(transfers)
+		return c.JSON(userPending)
 	})
 
-	// Approve Transfer
-	protected.Post("/transfers/:id/approve", func(c *fiber.Ctx) error {
-		if pgDB == nil {
-			return c.Status(503).JSON(fiber.Map{"error": "Database not available"})
+	// Approve Transfer - Approve on blockchain
+	protected.Post("/transfers/:assetId/approve", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { 
+			return c.Status(401).JSON(fiber.Map{"error": err.Error()}) 
 		}
 
-		contract, err := getContract(c)
-		if err != nil { return c.Status(401).JSON(fiber.Map{"error": err.Error()}) }
-
-		pendingID := c.Params("id")
+		assetID := c.Params("assetId")
 		claims := c.Locals("user").(*auth.Claims)
 
-		// Get pending transfer details
-		var assetID, assetName, currentOwner, newOwner, status string
-		var expiresAt time.Time
-		err = pgDB.QueryRow(`
-			SELECT asset_id, asset_name, current_owner, new_owner, status, expires_at
-			FROM pending_transfers WHERE id = $1
-		`, pendingID).Scan(&assetID, &assetName, &currentOwner, &newOwner, &status, &expiresAt)
+		log.Printf("✅ Approving transfer: Asset %s by %s", assetID, claims.UserID)
 
+		// Call chaincode - pass current user as approver
+		_, err = contract.SubmitTransaction("ApproveTransfer", assetID, claims.UserID)
 		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Pending transfer not found"})
+			log.Printf("❌ Transfer approval failed: %v", err)
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		// Check if expired
-		if time.Now().After(expiresAt) {
-			pgDB.Exec("UPDATE pending_transfers SET status = 'EXPIRED' WHERE id = $1", pendingID)
-			return c.Status(400).JSON(fiber.Map{"error": "Transfer request has expired"})
-		}
-
-		// Check if already executed/rejected
-		if status != "PENDING" {
-			return c.Status(400).JSON(fiber.Map{"error": "Transfer is no longer pending"})
-		}
-
-		// Verify user is involved in this transfer
-		if claims.UserID != currentOwner && claims.UserID != newOwner {
-			return c.Status(403).JSON(fiber.Map{"error": "You are not authorized to approve this transfer"})
-		}
-
-		// Check if already signed
-		var alreadySigned bool
-		pgDB.QueryRow(`
-			SELECT EXISTS(SELECT 1 FROM transfer_signatures 
-			WHERE pending_transfer_id = $1 AND signer_id = $2)
-		`, pendingID, claims.UserID).Scan(&alreadySigned)
-
-		if alreadySigned {
-			return c.Status(400).JSON(fiber.Map{"error": "You have already signed this transfer"})
-		}
-
-		// Determine signer role
-		signerRole := "CURRENT_OWNER"
-		if claims.UserID == newOwner {
-			signerRole = "NEW_OWNER"
-		}
-
-		// Record approval
-		_, err = pgDB.Exec(`
-			INSERT INTO transfer_signatures (pending_transfer_id, signer_id, signer_role, action, comment)
-			VALUES ($1, $2, $3, 'APPROVED', 'Approved transfer')
-		`, pendingID, claims.UserID, signerRole)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to record approval: " + err.Error()})
-		}
-
-		// Check if we now have 2 approvals
-		var approvalCount int
-		pgDB.QueryRow(`
-			SELECT COUNT(*) FROM transfer_signatures 
-			WHERE pending_transfer_id = $1 AND action = 'APPROVED'
-		`, pendingID).Scan(&approvalCount)
-
-		if approvalCount >= 2 {
-			// Execute transfer on blockchain
-			log.Printf("✅ All signatures collected. Executing transfer: Asset %s from %s to %s", assetID, currentOwner, newOwner)
-			
-			_, err = contract.SubmitTransaction("TransferAsset", assetID, newOwner)
-			if err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": "Failed to execute transfer on blockchain: " + err.Error()})
-			}
-
-			// Mark as executed
-			pgDB.Exec(`
-				UPDATE pending_transfers 
-				SET status = 'EXECUTED', executed_at = NOW() 
-				WHERE id = $1
-			`, pendingID)
-
-			return c.JSON(fiber.Map{
-				"message": "Transfer approved and executed successfully!",
-				"status": "EXECUTED",
-			})
-		}
+		log.Printf("✅ Transfer approved on blockchain: Asset %s", assetID)
 
 		return c.JSON(fiber.Map{
-			"message": "Transfer approved. Awaiting second signature.",
-			"status": "PENDING",
-			"approvals": approvalCount,
-			"required": 2,
+			"message": "Transfer approved successfully",
+			"status": "APPROVED",
 		})
 	})
 
-	// Reject Transfer
-	protected.Post("/transfers/:id/reject", func(c *fiber.Ctx) error {
-		if pgDB == nil {
-			return c.Status(503).JSON(fiber.Map{"error": "Database not available"})
+	// Reject Transfer - Reject on blockchain
+	protected.Post("/transfers/:assetId/reject", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil { 
+			return c.Status(401).JSON(fiber.Map{"error": err.Error()}) 
 		}
 
-		pendingID := c.Params("id")
+		assetID := c.Params("assetId")
 		claims := c.Locals("user").(*auth.Claims)
 
 		type RejectRequest struct {
@@ -658,50 +541,20 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		p := new(RejectRequest)
 		c.BodyParser(p)
 
-		// Get pending transfer details
-		var currentOwner, newOwner, status string
-		err := pgDB.QueryRow(`
-			SELECT current_owner, new_owner, status
-			FROM pending_transfers WHERE id = $1
-		`, pendingID).Scan(&currentOwner, &newOwner, &status)
+		if p.Reason == "" {
+			p.Reason = "No reason provided"
+		}
 
+		log.Printf("❌ Rejecting transfer: Asset %s by %s. Reason: %s", assetID, claims.UserID, p.Reason)
+
+		// Call chaincode - pass current user as rejector
+		_, err = contract.SubmitTransaction("RejectTransfer", assetID, p.Reason, claims.UserID)
 		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Pending transfer not found"})
+			log.Printf("❌ Transfer rejection failed: %v", err)
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		// Verify user is involved
-		if claims.UserID != currentOwner && claims.UserID != newOwner {
-			return c.Status(403).JSON(fiber.Map{"error": "You are not authorized to reject this transfer"})
-		}
-
-		// Check if already executed/rejected
-		if status != "PENDING" {
-			return c.Status(400).JSON(fiber.Map{"error": "Transfer is no longer pending"})
-		}
-
-		// Record rejection
-		signerRole := "CURRENT_OWNER"
-		if claims.UserID == newOwner {
-			signerRole = "NEW_OWNER"
-		}
-
-		_, err = pgDB.Exec(`
-			INSERT INTO transfer_signatures (pending_transfer_id, signer_id, signer_role, action, comment)
-			VALUES ($1, $2, $3, 'REJECTED', $4)
-		`, pendingID, claims.UserID, signerRole, p.Reason)
-
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to record rejection: " + err.Error()})
-		}
-
-		// Mark transfer as rejected
-		pgDB.Exec(`
-			UPDATE pending_transfers 
-			SET status = 'REJECTED', rejection_reason = $1 
-			WHERE id = $2
-		`, p.Reason, pendingID)
-
-		log.Printf("❌ Transfer rejected by %s (Pending ID: %s)", claims.UserID, pendingID)
+		log.Printf("✅ Transfer rejected on blockchain: Asset %s", assetID)
 
 		return c.JSON(fiber.Map{
 			"message": "Transfer rejected successfully",

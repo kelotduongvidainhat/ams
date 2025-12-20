@@ -98,13 +98,13 @@ export const getPendingTransfers = async () => {
     return response.data;
 };
 
-export const approveTransfer = async (pendingId: number) => {
-    const response = await api.post(`/protected/transfers/${pendingId}/approve`);
+export const approveTransfer = async (assetId: string) => {
+    const response = await api.post(`/protected/transfers/${assetId}/approve`);
     return response.data;
 };
 
-export const rejectTransfer = async (pendingId: number, reason: string) => {
-    const response = await api.post(`/protected/transfers/${pendingId}/reject`, { reason });
+export const rejectTransfer = async (assetId: string, reason: string) => {
+    const response = await api.post(`/protected/transfers/${assetId}/reject`, { reason });
     return response.data;
 };
 

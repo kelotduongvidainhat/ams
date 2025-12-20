@@ -260,39 +260,41 @@ sequenceDiagram
     participant DB as 💾 PostgreSQL
     participant Fabric as 🔗 Blockchain
 
-    Note over Tomoko,Fabric: Phase 1: Initiate Transfer
+    Note over Tomoko,Fabric: Phase 1: Initiate Transfer (On-Chain)
     Tomoko->>Frontend: Click "Transfer" on asset101
     Frontend->>Frontend: Enter new owner: Brad
     Frontend->>Backend: POST /protected/transfers/initiate
-    Backend->>Backend: Verify Tomoko owns asset101
-    Backend->>DB: INSERT INTO pending_transfers
-    Backend->>DB: INSERT signature (Tomoko, APPROVED)
-    Backend-->>Frontend: Pending ID: 1, Status: PENDING (1/2)
-    Frontend-->>Tomoko: "Transfer initiated! Awaiting Brad's approval"
+    Backend->>Backend: Verify User Context
+    Backend->>Fabric: SubmitTransaction("InitiateTransfer", asset101, Brad)
+    Fabric->>Fabric: Verify Ownership & Create Pending State
+    Fabric->>Fabric: Emit Event: TransferInitiated
+    Fabric-->>Backend: Success (Asset Locked)
+    
+    Backend-->>Frontend: Transfer Initiated
+    
+    Fabric->>DB: Event: TransferInitiated
+    DB->>DB: INSERT INTO pending_transfers (from Event)
 
-    Note over Brad,Fabric: Phase 2: Notification
-    Brad->>Frontend: Login & see notification bell 🔔
+    Note over Brad,Fabric: Phase 2: Notification & Approval
+    Brad->>Frontend: Login & View Pending Transfers
     Frontend->>Backend: GET /protected/transfers/pending
-    Backend->>DB: SELECT pending_transfers WHERE new_owner=Brad
-    Backend-->>Frontend: [{ id: 1, asset: asset101, from: Tomoko }]
-    Frontend-->>Brad: Show pending transfer with countdown
-
-    Note over Brad,Fabric: Phase 3: Approval & Execution
+    Backend->>Fabric: Evaluate("GetAllPendingTransfers")
+    Fabric-->>Backend: List of Pending Transfers
+    Backend-->>Frontend: Show Pending List
+    
     Brad->>Frontend: Click "Approve Transfer"
-    Frontend->>Backend: POST /protected/transfers/1/approve
-    Backend->>DB: INSERT signature (Brad, APPROVED)
-    Backend->>DB: Check approval_count = 2/2 ✓
-    Backend->>Fabric: SubmitTransaction("TransferAsset", asset101, Brad)
-    Fabric->>Fabric: Update owner to Brad
+    Frontend->>Backend: POST /protected/transfers/:id/approve
+    Backend->>Fabric: SubmitTransaction("ApproveTransfer")
+    Fabric->>Fabric: Verify 2/2 Signatures
+    Fabric->>Fabric: Execute Transfer (Atomic Update)
+    Fabric->>Fabric: Emit Event: AssetTransferred
     Fabric-->>Backend: Success
-    Backend->>DB: UPDATE pending_transfers SET status=EXECUTED
+    
     Backend-->>Frontend: "Transfer executed!"
     
     Fabric->>DB: Event: AssetTransferred
     DB->>DB: UPDATE assets SET owner=Brad
-    DB->>DB: INSERT INTO asset_history
-    
-    Frontend->>Frontend: Refresh both users' portfolios
+    Frontend->>Frontend: Refresh Portfolio
 ```
 
 **Timeline**:
@@ -626,6 +628,14 @@ Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
         *   Yêu cầu `Authorization: Bearer <token>` trong Header của mọi request nhạy cảm.
     4.  **Login API**:
         *   `POST /api/auth/login`: Xác thực thông tin đăng nhập, trả về JWT Token.
+
+#### **Giai đoạn 6: On-Chain Multi-Sig Architecture ✅ Completed**
+*   **Mục tiêu**: Chuyển toàn bộ logic đa chữ ký (Multi-Sig) lên Chaincode để đảm bảo tính bất biến và bảo mật tuyệt đối.
+*   **Cải tiến**:
+    *   **Logic On-Chain**: Thay vì quản lý trạng thái pending trong SQL, toàn bộ quy trình `Initiate`, `Approve`, `Reject` được xử lý trực tiếp trên Ledger.
+    *   **Atomic Execution**: Giao dịch chỉ được thực thi khi đủ chữ ký xác thực ngay trong Chaincode, loại bỏ Race Condition.
+    *   **Event-Driven**: Backend đóng vai trò Relay, UI được cập nhật thông qua Event Listener từ Blockchain.
+    *   **Security**: Loại bỏ hoàn toàn khả năng thao túng database pending transfer từ phía Backend/Admin.
 
 ---
 ## 🛠️ Công cụ hỗ trợ (Helper Scripts)
