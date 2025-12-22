@@ -12,7 +12,7 @@ import { Loader2, AlertCircle, LayoutGrid, Globe } from 'lucide-react';
 
 import PortfolioView from '../components/dashboard/PortfolioView';
 import ExplorerView from '../components/dashboard/ExplorerView';
-import AdminView from '../components/dashboard/AdminView';
+import AdminLayout from '../components/admin/AdminLayout'; // Fixed Import
 
 interface DashboardProps {
     currentUser: User;
@@ -83,6 +83,10 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const myAssets = assets.filter(a => a.owner === currentUser.id);
     const publicAssets = assets.filter(a => a.owner !== currentUser.id);
 
+    if (currentUser.role === 'Admin') {
+        return <AdminLayout currentUser={currentUser} onLogout={onLogout} />;
+    }
+
     return (
         <>
             <Navbar
@@ -94,34 +98,32 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
             />
 
             {/* Sub-Navigation Tabs */}
-            {currentUser.role !== 'Admin' && (
-                <div className="border-b border-white/5 bg-slate-900/50 backdrop-blur-sm sticky top-16 z-30">
-                    <div className="container mx-auto px-4">
-                        <div className="flex items-center gap-6">
-                            <button
-                                onClick={() => setActiveTab('portfolio')}
-                                className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'portfolio'
-                                    ? 'border-blue-500 text-blue-400'
-                                    : 'border-transparent text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                <LayoutGrid size={18} /> My Portfolio
-                                <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{myAssets.length}</span>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('explorer')}
-                                className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'explorer'
-                                    ? 'border-indigo-500 text-indigo-400'
-                                    : 'border-transparent text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                <Globe size={18} /> Public Explorer
-                                <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{publicAssets.length}</span>
-                            </button>
-                        </div>
+            <div className="border-b border-white/5 bg-slate-900/50 backdrop-blur-sm sticky top-16 z-30">
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={() => setActiveTab('portfolio')}
+                            className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'portfolio'
+                                ? 'border-blue-500 text-blue-400'
+                                : 'border-transparent text-slate-400 hover:text-white'
+                                }`}
+                        >
+                            <LayoutGrid size={18} /> My Portfolio
+                            <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{myAssets.length}</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('explorer')}
+                            className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'explorer'
+                                ? 'border-indigo-500 text-indigo-400'
+                                : 'border-transparent text-slate-400 hover:text-white'
+                                }`}
+                        >
+                            <Globe size={18} /> Public Explorer
+                            <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{publicAssets.length}</span>
+                        </button>
                     </div>
                 </div>
-            )}
+            </div>
 
             <div className="container mx-auto px-4 py-8 pb-20">
                 {/* Error State */}
@@ -139,33 +141,27 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                     </div>
                 ) : (
                     <>
-                        {currentUser.role === 'Admin' ? (
-                            <AdminView currentUser={currentUser} />
-                        ) : (
-                            <>
-                                {/* PORTFOLIO TAB */}
-                                {activeTab === 'portfolio' && (
-                                    <PortfolioView
-                                        assets={myAssets}
-                                        currentUser={currentUser}
-                                        onTransfer={(a) => setSelectedAssetForTransfer(a)}
-                                        onHistory={(a) => setSelectedAssetForHistory(a)}
-                                        onShare={(a) => setSelectedAssetForShare(a)}
-                                        onEdit={(a) => setSelectedAssetForEdit(a)}
-                                        onCreate={() => setIsModalOpen(true)}
-                                    />
-                                )}
+                        {/* PORTFOLIO TAB */}
+                        {activeTab === 'portfolio' && (
+                            <PortfolioView
+                                assets={myAssets}
+                                currentUser={currentUser}
+                                onTransfer={(a) => setSelectedAssetForTransfer(a)}
+                                onHistory={(a) => setSelectedAssetForHistory(a)}
+                                onShare={(a) => setSelectedAssetForShare(a)}
+                                onEdit={(a) => setSelectedAssetForEdit(a)}
+                                onCreate={() => setIsModalOpen(true)}
+                            />
+                        )}
 
-                                {/* EXPLORER TAB */}
-                                {activeTab === 'explorer' && (
-                                    <ExplorerView
-                                        assets={publicAssets}
-                                        currentUser={currentUser}
-                                        onHistory={(a) => setSelectedAssetForHistory(a)}
-                                        onSearch={handleSearch}
-                                    />
-                                )}
-                            </>
+                        {/* EXPLORER TAB */}
+                        {activeTab === 'explorer' && (
+                            <ExplorerView
+                                assets={publicAssets}
+                                currentUser={currentUser}
+                                onHistory={(a) => setSelectedAssetForHistory(a)}
+                                onSearch={handleSearch}
+                            />
                         )}
                     </>
                 )}

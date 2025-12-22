@@ -106,3 +106,57 @@ Use the automated script to test the Locking feature:
 4. ✅ Tomoko attempts login -> **DENIED**.
 5. ✅ Unlock user Tomoko -> Status changes to Active.
 6. ✅ Tomoko logins again -> **SUCCESS**.
+
+---
+
+## 📅 Comprehensive Admin Dashboard Implementation Plan
+
+### Goal
+Implement a full-featured Admin Dashboard separated from the standard User View. The dashboard will be organized into 5 specific modules to manage the entire system effectively.
+
+### Modules Overview
+1.  **Overview Analytics**: High-level system metrics (Users, Assets, Transfers).
+2.  **Identity Management**: Manage users, roles, and access security (Lock/Unlock).
+3.  **Asset & Audit**: Global view of all assets and their provenance/history.
+4.  **Transaction Control**: Monitor and audit pending multi-sig transfers.
+5.  **Network Configuration**: View blockchain network health, peers, and configuration status.
+
+### Proposed Changes
+
+#### 1. Smart Contract (Chaincode)
+*   **Identity**: Update `User` struct with `Status` field ("Active", "Locked"). Add `SetUserStatus` function. (✅ Done)
+*   **Transactions**: Ensure `GetAllPendingTransfers` is accessible to Admin. (✅ Done)
+
+#### 2. Database Schema & Sync
+*   **Schema**: Add `status` column to `users` table. (✅ Done)
+*   **Sync Listener**: Sync `UserStatusUpdated` events to Postgres. (✅ Done)
+
+#### 3. Backend Service (`backend/admin`)
+*   **Analytics**: Enhance `getDashboardStats`. (✅ Done)
+*   **Identity**: Add `setUserStatus` endpoint. (✅ Done)
+*   **Assets**: Add `getAllAssets` (admin logs) endpoint. (✅ Done)
+*   **Transactions**: Add `getAllPendingTransfers` (admin view) endpoint. (✅ Done)
+*   **Network**: Enhance `/health` endpoint to return network details. (✅ Done)
+
+#### 4. Frontend Application (`frontend/src`)
+*   **Dashboard.tsx**: Ensure strict separation. If Admin, show only Admin Dashboard.
+*   **AdminLayout.tsx**: Sidebar navigation for the 5 modules.
+*   **New Modules**: `components/admin/modules/`
+    *   `Analytics.tsx`: Stats cards and charts.
+    *   `IdentityManagement.tsx`: User list with Lock/Unlock actions.
+    *   `AssetAudit.tsx`: Table of all assets with "View History" action.
+    *   `TransactionControl.tsx`: List of pending/past transfers.
+    *   `NetworkConfig.tsx`: System health and parameter display.
+
+### Verification Plan
+
+#### Automated Tests
+*   Update `scripts/test_admin.sh` to hit new endpoints.
+
+#### Manual Verification
+1.  **Fresh Start**: Run `sudo ./scripts/fresh_start.sh`.
+2.  **Admin Experience**:
+    *   Login as `admin`.
+    *   Verify all 5 tabs load data correctly.
+3.  **Identity**: Lock `Tomoko` and verify she cannot login.
+4.  **Audit**: Check history of an asset.

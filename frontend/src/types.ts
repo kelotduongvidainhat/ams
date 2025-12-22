@@ -42,3 +42,12 @@ export interface UserStats extends User {
     has_wallet: boolean;
     joined_at: string;
 }
+
+export interface PendingTransfer {
+    id: number;
+    asset_id: string;
+    current_owner: string;
+    new_owner: string;
+    status: string;
+    created_at: string;
+}
