@@ -229,3 +229,196 @@ docker network ls | grep fabric_network
 - Raft consensus yêu cầu ít nhất 2/3 orderers hoạt động
 - Tất cả crypto material được tạo tự động bởi Fabric CA
 - Channel được tạo với profile "ChannelUsingRaft"
+
+
+---
+
+
+# AMS Backend API
+
+RESTful API Gateway kết nối Frontend với Hyperledger Fabric Blockchain.
+
+## Công nghệ
+*   **Language**: Go 1.24+
+*   **Web Framework**: Fiber v2
+*   **Blockchain SDK**: Fabric Gateway Client for Go
+
+## Cấu trúc
+```
+backend/
+├── fabric/       # Logic kết nối Blockchain (Client, Identity, Signing)
+├── main.go       # API Entrypoint (Routes, Handlers)
+└── go.mod        # Dependency Management
+```
+
+## Hướng dẫn Chạy
+
+**Tiền đề**:
+1.  Mạng lưới Fabric (`../network`) phải đang chạy.
+2.  Chaincode `basic` đã được deploy.
+
+**Thực thi**:
+```bash
+cd backend
+go run main.go
+```
+
+## API Endpoints
+
+### 1. Health Check
+*   **URL**: `GET /api/health`
+*   **Response**: `{"status": "ok"}`
+
+### 2. Get All Assets
+*   **URL**: `GET /api/assets`
+*   **Response**: Danh sách toàn bộ tài sản từ Blockchain.
+
+### 3. Create Asset
+*   **URL**: `POST /api/assets`
+*   **Body**:
+    ```json
+    {
+        "id": "asset01",
+        "name": "VinFast VF9",
+        "type": "Vehicle",
+        "owner": "Mr. V",
+        "value": 85000,
+        "status": "Available",
+        "metadata_url": "http://ipfs.io/vf9.json"
+    }
+    ```
+*   **Logic**:
+    1.  Tính SHA-256 Hash từ `metadata_url` + `name` (Giả lập logic tính hash file).
+    2.  Gửi giao dịch `CreateAsset` lên Blockchain với Hash vừa tạo.
+
+### 6. Admin Service (Protected)
+Requires JWT Token with `role: Admin`.
+
+*   **Dashboard Stats**:
+    *   **URL**: `GET /api/protected/admin/dashboard`
+    *   **Response**: `{"total_users": 10, "total_assets": 50, "pending_transfers": 2}`
+
+*   **Manage Users**:
+    *   **URL**: `GET /api/protected/admin/users`
+    *   **Response**: List of users with wallet status and identity details.
+
+
+---
+
+
+# AMS Frontend Web App
+
+Giao diện người dùng hiện đại quản lý tài sản trên Blockchain.
+
+## Công nghệ
+*   **Framework**: React (Vite) + TypeScript
+*   **Styling**: Tailwind CSS (Glassmorphism Design)
+*   **Icons**: Lucide-React
+*   **Integration**: Axios (connects to Backend API)
+
+## Cấu trúc
+```
+frontend/
+├── src/
+│   ├── components/  # Navbar, AssetCard
+│   ├── pages/       # Dashboard, CreateAsset
+│   ├── services/    # API Logic
+│   └── types.ts     # Data Models
+└── vite.config.ts   # Proxy Config (/api -> localhost:3000)
+```
+
+## Hướng dẫn Chạy
+
+1.  Đảm bảo **Backend** đang chạy (`cd backend && go run main.go`).
+2.  Chạy Frontend:
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+3.  Truy cập: `http://localhost:5173`
+
+## Tính năng
+*   **Asset Portfolio**: Xem danh sách tài sản trực quan dạng thẻ.
+*   **Integrity Check**: Hiển thị Hash metadata on-chain để chứng minh tính toàn vẹn.
+
+
+---
+
+
+# 🗄️ Database Schema & Management
+
+## Overview
+
+The AMS system uses **PostgreSQL** as an off-chain data store to enable rich querying capabilities that are not efficient on the blockchain ledger directly.
+
+## Schema Structure
+
+### `users` table
+Stores basic user identity and roles, synced from user enrollment and registration.
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(255) PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    identity_number VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL, -- User, Admin, Auditor
+    wallet_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'Active' -- Active, Locked
+);
+```
+
+### `assets` table
+Stores the current state of all assets.
+
+```sql
+CREATE TABLE IF NOT EXISTS assets (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    owner VARCHAR(255) REFERENCES users(id),
+    status VARCHAR(50) NOT NULL, -- Available, Locked, etc.
+    metadata_url TEXT,
+    metadata_hash TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### `asset_history` table
+An append-only log of all changes to assets for auditing.
+
+```sql
+CREATE TABLE IF NOT EXISTS asset_history (
+    tx_id VARCHAR(255) NOT NULL,
+    asset_id VARCHAR(255) REFERENCES assets(id),
+    action_type VARCHAR(50) NOT NULL, -- CREATE, UPDATE, TRANSFER
+    old_owner VARCHAR(255),
+    new_owner VARCHAR(255),
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (tx_id, asset_id)
+);
+```
+
+### `pending_transfers` table
+Tracks multi-sig transfer requests that are waiting for approval.
+
+```sql
+CREATE TABLE IF NOT EXISTS pending_transfers (
+    id SERIAL PRIMARY KEY,
+    asset_id VARCHAR(255) REFERENCES assets(id),
+    current_owner VARCHAR(255) REFERENCES users(id),
+    new_owner VARCHAR(255) REFERENCES users(id),
+    status VARCHAR(50) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+```
+
+## Sync Mechanism
+The backend runs a **Block Listener** (`backend/sync/listener.go`) that subscribes to Chaincode events and updates these tables in real-time.
+
+1. `AssetCreated` -> INSERT into `assets`
+2. `AssetUpdated` -> UPDATE `assets`
+3. `AssetTransferred` -> UPDATE `assets` owner
+4. `UserStatusUpdated` -> UPDATE `users` status

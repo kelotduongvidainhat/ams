@@ -594,9 +594,14 @@ Core modules are completed (MVP Completed):
 
 #### **Phase 8: Future Works (Planned)**
 *   **Goal**: Scaling & New Features.
-*   **Planned**: Dashboard Analytics, Network Expansion, IPFS Integration.
+*   **Planned Features**:
+    *   **Dashboard Analytics**: Advanced data visualization.
+    *   **Network Expansion**: Multi-organization setup.
+    *   **IPFS Integration**: Decentralized storage for asset metadata.
+    *   **Composite Key Status**: Refactor user locking to use composite keys (`status~userID`) for better concurrency at scale.
 
 ---
+
 ## 🛠️ Helper Scripts
 
 *   `scripts/fresh_start.sh`: Automate Reset & Re-deploy.
@@ -604,7 +609,14 @@ Core modules are completed (MVP Completed):
 
 ---
 
-## 📚 References
+## 📚 Documentation
 
-*   [Network & Debugging Details](network/README.md)
-*   [CCAAS Theory & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md) 
+For more specific details, please refer to the documents in the `docs/` folder:
+
+*   **[System Architecture](docs/ARCHITECTURE.md)**: Technical details on Network, Backend, Frontend, and Database.
+*   **[Operations Guide](docs/OPERATIONS.md)**: Admin guide, scripts, and user account management.
+*   **[Features & Workflows](docs/FEATURES.md)**: Transaction flows, wallet services, and multi-sig logic.
+
+For finding old document versions, check `docs/archive/`.
+
+ 
