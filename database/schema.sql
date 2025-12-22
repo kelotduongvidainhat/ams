@@ -93,3 +93,11 @@ CREATE INDEX idx_pending_transfers_new_owner ON pending_transfers(new_owner);
 CREATE INDEX idx_pending_transfers_status ON pending_transfers(status);
 CREATE INDEX idx_pending_transfers_expires_at ON pending_transfers(expires_at);
 CREATE INDEX idx_transfer_signatures_pending_id ON transfer_signatures(pending_transfer_id);
+
+-- ================= MARKETPLACE MIGRATION =================
+-- Run these if tables already exist
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(20, 2) DEFAULT 0.0;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS price DECIMAL(20, 2) DEFAULT 0.0;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
+

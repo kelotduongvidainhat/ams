@@ -58,7 +58,7 @@ Planned features for future releases (Phase 8).
 - [ ] **Network Expansion**: Multi-organization setup (e.g., Org1, Org2).
 - [x] **IPFS Integration**: Decentralized storage for metadata files instead of HTTP URLs.
 - [ ] **Composite Key Refactor**: Optimize status checks using `status~userID` keys.
-- [ ] **WebSocket Integration**: Real-time frontend updates (replace 30s polling).
+- [x] **WebSocket Integration**: Real-time frontend updates (replace 30s polling).
 - [ ] **Nginx Load Balancer**: Unified entry point for SSL termination and static file serving.
 - [ ] **Redis Caching**: Cache expensive queries (for High-Traffic Public Explorer).
 - [ ] **Advanced Monitoring**: Prometheus/Grafana stack for network health metrics.

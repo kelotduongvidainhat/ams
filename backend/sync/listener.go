@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	_ "github.com/lib/pq"
+	"ams/backend/ws"
 )
 
 // BlockListener listens for chaincode events and syncs them to PostgreSQL
@@ -31,16 +32,19 @@ type Asset struct {
 	MetadataURL  string   `json:"metadata_url"`
 	MetadataHash string   `json:"metadata_hash"`
 	Viewers      []string `json:"viewers"`
+	Price        float64  `json:"price"`
+	Currency     string   `json:"currency"`
 }
 
 // User structure matching chaincode
 type User struct {
-	ID             string `json:"id"`
-	FullName       string `json:"full_name"`
-	IdentityNumber string `json:"identity_number"`
-	Role           string `json:"role"`
-	WalletAddress  string `json:"wallet_address"`
-	Status         string `json:"status"`
+	ID             string  `json:"id"`
+	FullName       string  `json:"full_name"`
+	IdentityNumber string  `json:"identity_number"`
+	Role           string  `json:"role"`
+	WalletAddress  string  `json:"wallet_address"`
+	Status         string  `json:"status"`
+	Balance        float64 `json:"balance"`
 }
 
 // StartEventListening begins the infinite loop of event processing
@@ -60,11 +64,11 @@ func (bl *BlockListener) StartEventListening() {
 
 		
 		switch event.EventName {
-		case "AssetCreated", "AssetUpdated", "AssetTransferred", "AccessGranted", "AccessRevoked":
+		case "AssetCreated", "AssetUpdated", "AssetTransferred", "TransferExecuted", "AccessGranted", "AccessRevoked", "AssetListed", "AssetDelisted":
 			processAssetEvent(bl.DB, event)
 		case "AssetDeleted":
 			processDeleteEvent(bl.DB, event)
-		case "UserCreated", "UserStatusUpdated":
+		case "UserCreated", "UserStatusUpdated", "CreditsMinted":
 			processUserEvent(bl.DB, event)
 		}
 	}
@@ -78,24 +82,26 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	}
 
 	query := `
-		INSERT INTO users (id, full_name, identity_number, role, wallet_address, status, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		INSERT INTO users (id, full_name, identity_number, role, wallet_address, status, balance, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			full_name = EXCLUDED.full_name,
 			identity_number = EXCLUDED.identity_number,
 			role = EXCLUDED.role,
 			wallet_address = EXCLUDED.wallet_address,
 			status = EXCLUDED.status,
+			balance = EXCLUDED.balance,
 			updated_at = NOW();
 	`
 	// Handle missing status field in older events
 	if user.Status == "" { user.Status = "Active" }
 
-	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress, user.Status)
+	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress, user.Status, user.Balance)
 	if err != nil {
 		log.Printf("❌ DB Error (Upsert User): %v", err)
 	} else {
 		log.Printf("✅ Synced User %s to Postgres", user.ID)
+		ws.BroadcastEvent("USER_UPDATE", user)
 	}
 }
 
@@ -108,8 +114,8 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 
 	// 1. Upsert into ASSETS table
 	query := `
-		INSERT INTO assets (id, doc_type, name, asset_type, owner, status, metadata_url, metadata_hash, viewers, last_tx_id, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+		INSERT INTO assets (id, doc_type, name, asset_type, owner, status, metadata_url, metadata_hash, viewers, price, currency, last_tx_id, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			asset_type = EXCLUDED.asset_type,
@@ -118,6 +124,8 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 			metadata_url = EXCLUDED.metadata_url,
 			metadata_hash = EXCLUDED.metadata_hash,
 			viewers = EXCLUDED.viewers,
+			price = EXCLUDED.price,
+			currency = EXCLUDED.currency,
 			last_tx_id = EXCLUDED.last_tx_id,
 			updated_at = NOW();
 	`
@@ -126,6 +134,7 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	_, err := db.Exec(query, 
 		asset.ID, asset.DocType, asset.Name, asset.Type, asset.Owner, 
 		asset.Status, asset.MetadataURL, asset.MetadataHash, viewersJSON,
+		asset.Price, asset.Currency,
 		event.TransactionID,
 	)
 
@@ -141,8 +150,14 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	`
 	// Map event name to action type
 	actionType := strings.ToUpper(strings.Replace(event.EventName, "Asset", "", 1))
-	if event.EventName == "AccessGranted" { actionType = "GRANT_ACCESS" }
-	if event.EventName == "AccessRevoked" { actionType = "REVOKE_ACCESS" }
+	switch event.EventName {
+	case "AccessGranted":
+		actionType = "GRANT_ACCESS"
+	case "AccessRevoked":
+		actionType = "REVOKE_ACCESS"
+	case "TransferExecuted":
+		actionType = "TRANSFER_EXECUTED"
+	}
 
 	_, err = db.Exec(historyQuery, event.TransactionID, asset.ID, actionType, asset.Owner, event.BlockNumber, event.Payload)
 
@@ -151,6 +166,9 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	} else {
 		log.Printf("✅ Synced Asset %s to Postgres", asset.ID)
 	}
+	
+	// Broadcast everything
+	ws.BroadcastEvent(actionType, asset)
 }
 
 func processDeleteEvent(db *sql.DB, event *client.ChaincodeEvent) {

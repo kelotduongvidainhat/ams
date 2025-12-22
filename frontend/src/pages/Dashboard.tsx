@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getAssets, getPendingTransfers } from '../services/api';
 import type { Asset, User } from '../types';
 import Navbar from '../components/Navbar';
+import { useWebSocket } from '../context/WebSocketContext';
 import CreateAssetModal from '../components/CreateAssetModal';
 import EditAssetModal from '../components/EditAssetModal';
 import TransferModal from '../components/TransferModal';
@@ -25,6 +26,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'admin'>('portfolio');
     const [pendingCount, setPendingCount] = useState(0);
+    const { lastMessage } = useWebSocket();
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,11 +48,36 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     useEffect(() => {
         fetchData();
         fetchPendingCount();
-        // Poll for pending transfers every 30 seconds
-        const interval = setInterval(fetchPendingCount, 30000);
-        return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
+
+    // WebSocket Event Listener
+    useEffect(() => {
+        if (lastMessage) {
+            console.log("🔔 WS Event:", lastMessage.type);
+            switch (lastMessage.type) {
+                case 'CREATED':
+                case 'UPDATED':
+                case 'TRANSFERRED':
+                case 'GRANT_ACCESS':
+                case 'REVOKE_ACCESS':
+                    fetchData(); // Refresh asset lists
+                    break;
+                case 'TRANSFER_INITIATED':
+                case 'TRANSFER_APPROVED':
+                case 'TRANSFER_REJECTED':
+                    fetchPendingCount(); // Refresh badge
+                    if (showPendingTransfers) {
+                        // Force refresh logic for modal would be here, 
+                        // but standard approach is to update badge or have modal poll/listen itself
+                    }
+                    if (lastMessage.type === 'TRANSFER_APPROVED') {
+                        fetchData(); // Ownership changed
+                    }
+                    break;
+            }
+        }
+    }, [lastMessage]);
 
     const fetchData = async () => {
         try {

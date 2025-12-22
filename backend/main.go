@@ -15,17 +15,47 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
+	"github.com/gofiber/contrib/websocket"
 
 	"ams/backend/fabric"
 	"ams/backend/sync"
 	"ams/backend/auth"
 	"ams/backend/admin"
+	"ams/backend/ws"
 )
 
 
 func main() {
 	// Initialize Fiber app
 	app := fiber.New()
+
+	// Initialize WebSocket Hub
+	go ws.InitHub().Run()
+
+	// WebSocket Upgrade Middleware
+	app.Use("/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return c.SendStatus(fiber.StatusUpgradeRequired)
+	})
+
+	// WebSocket Endpoint
+	app.Get("/ws", websocket.New(func(c *websocket.Conn) {
+		client := &ws.Client{Conn: c}
+		ws.GlobalHub.Register <- client
+		
+		defer func() {
+			ws.GlobalHub.Unregister <- client
+			c.Close()
+		}()
+
+		for {
+			_, _, err := c.ReadMessage()
+			if err != nil { break }
+		}
+	}))
 
 	// Middleware
 	app.Use(logger.New())
