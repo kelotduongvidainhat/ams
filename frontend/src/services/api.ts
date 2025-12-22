@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Asset, User, AssetHistory } from '../types';
+import type { Asset, User, AssetHistory, DashboardStats, UserStats } from '../types';
 
 const api = axios.create({
     baseURL: '/api',
@@ -137,5 +137,17 @@ export interface Transaction {
 
 export const getRecentTransactions = async (): Promise<Transaction[]> => {
     const response = await api.get<Transaction[]>('/explorer/transactions');
+    return response.data;
+};
+
+// --- Admin API ---
+
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+    const response = await api.get<DashboardStats>('/protected/admin/dashboard');
+    return response.data;
+};
+
+export const getAllUsers = async (): Promise<UserStats[]> => {
+    const response = await api.get<UserStats[]>('/protected/admin/users');
     return response.data;
 };

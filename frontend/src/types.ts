@@ -30,3 +30,14 @@ export interface AssetHistory {
     record: Asset;
     isDelete: boolean;
 }
+
+export interface DashboardStats {
+    total_users: number;
+    total_assets: number;
+    pending_transfers: number;
+}
+
+export interface UserStats extends User {
+    has_wallet: boolean;
+    joined_at: string;
+}

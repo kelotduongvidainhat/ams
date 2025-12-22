@@ -12,6 +12,7 @@ import { Loader2, AlertCircle, LayoutGrid, Globe } from 'lucide-react';
 
 import PortfolioView from '../components/dashboard/PortfolioView';
 import ExplorerView from '../components/dashboard/ExplorerView';
+import AdminView from '../components/dashboard/AdminView';
 
 interface DashboardProps {
     currentUser: User;
@@ -22,7 +23,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'admin'>('portfolio');
     const [pendingCount, setPendingCount] = useState(0);
 
     // Modal State
@@ -37,6 +38,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     useEffect(() => {
         if (currentUser.role === 'Auditor') {
             setActiveTab('explorer');
+        } else if (currentUser.role === 'Admin') {
+            setActiveTab('admin');
         }
     }, [currentUser.role]);
 
@@ -114,6 +117,19 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                             <Globe size={18} /> Public Explorer
                             <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{publicAssets.length}</span>
                         </button>
+
+                        {/* Admin Tab */}
+                        {currentUser.role === 'Admin' && (
+                            <button
+                                onClick={() => setActiveTab('admin')}
+                                className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'admin'
+                                    ? 'border-purple-500 text-purple-400'
+                                    : 'border-transparent text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                <AlertCircle size={18} /> Admin Dashboard
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -155,6 +171,11 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                                 onHistory={(a) => setSelectedAssetForHistory(a)}
                                 onSearch={handleSearch}
                             />
+                        )}
+
+                        {/* ADMIN TAB */}
+                        {activeTab === 'admin' && (
+                            <AdminView currentUser={currentUser} />
                         )}
                     </>
                 )}
