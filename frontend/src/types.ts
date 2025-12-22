@@ -14,6 +14,7 @@ export interface User {
     identity_number: string;
     role: string;
     wallet_address?: string;
+    status: string; // "Active" | "Locked"
 }
 
 export interface AuthResponse {

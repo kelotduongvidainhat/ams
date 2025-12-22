@@ -151,3 +151,8 @@ export const getAllUsers = async (): Promise<UserStats[]> => {
     const response = await api.get<UserStats[]>('/protected/admin/users');
     return response.data;
 };
+
+export const setUserStatus = async (userId: string, status: 'Active' | 'Locked') => {
+    const response = await api.post(`/protected/admin/users/${userId}/status`, { status });
+    return response.data;
+};

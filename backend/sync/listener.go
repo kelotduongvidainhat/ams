@@ -40,6 +40,7 @@ type User struct {
 	IdentityNumber string `json:"identity_number"`
 	Role           string `json:"role"`
 	WalletAddress  string `json:"wallet_address"`
+	Status         string `json:"status"`
 }
 
 // StartEventListening begins the infinite loop of event processing
@@ -63,7 +64,7 @@ func (bl *BlockListener) StartEventListening() {
 			processAssetEvent(bl.DB, event)
 		case "AssetDeleted":
 			processDeleteEvent(bl.DB, event)
-		case "UserCreated":
+		case "UserCreated", "UserStatusUpdated":
 			processUserEvent(bl.DB, event)
 		}
 	}
@@ -77,16 +78,20 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	}
 
 	query := `
-		INSERT INTO users (id, full_name, identity_number, role, wallet_address, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
+		INSERT INTO users (id, full_name, identity_number, role, wallet_address, status, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			full_name = EXCLUDED.full_name,
 			identity_number = EXCLUDED.identity_number,
 			role = EXCLUDED.role,
 			wallet_address = EXCLUDED.wallet_address,
+			status = EXCLUDED.status,
 			updated_at = NOW();
 	`
-	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress)
+	// Handle missing status field in older events
+	if user.Status == "" { user.Status = "Active" }
+
+	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress, user.Status)
 	if err != nil {
 		log.Printf("❌ DB Error (Upsert User): %v", err)
 	} else {

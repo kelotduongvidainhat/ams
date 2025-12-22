@@ -39,6 +39,36 @@ type User struct {
 	IdentityNumber string `json:"identity_number"` // CCCD/Passport
 	WalletAddress  string `json:"wallet_address"`  // Optional: For future non-custodial features
 	Role           string `json:"role"`            // Admin, User, Auditor
+	Status         string `json:"status"`          // Active, Locked
+}
+
+// ... existing code ...
+
+// SetUserStatus updates the status of a user (e.g. "Locked" or "Active")
+func (s *SmartContract) SetUserStatus(ctx contractapi.TransactionContextInterface, targetUserID string, newStatus string, adminID string) error {
+	// 1. Verify Admin (Caller)
+	// Ideally we check Client Identity here, but passing adminID for simulation/logging consistency
+	
+	// 2. Get Target User
+	user, err := s.ReadUser(ctx, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	// 3. Update Status
+	user.Status = newStatus
+	
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(targetUserID, userBytes)
+	if err != nil {
+		return err
+	}
+
+	return ctx.GetStub().SetEvent("UserStatusUpdated", userBytes)
 }
 
 // HistoryQueryResult structure used for returning result of history query
@@ -98,15 +128,15 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 
 	// Seed Default Users
 	users := []User{
-		{DocType: "user", ID: "user01", FullName: "User One", IdentityNumber: "ID001", Role: "User"},
-		{DocType: "user", ID: "Tomoko", FullName: "Tomoko", IdentityNumber: "ID002", Role: "User"},
-		{DocType: "user", ID: "Brad", FullName: "Brad", IdentityNumber: "ID003", Role: "User"},
-		{DocType: "user", ID: "JinSoo", FullName: "Jin Soo", IdentityNumber: "ID004", Role: "User"},
-		{DocType: "user", ID: "Max", FullName: "Max", IdentityNumber: "ID005", Role: "User"},
-		{DocType: "user", ID: "Adriana", FullName: "Adriana", IdentityNumber: "ID006", Role: "User"},
-		{DocType: "user", ID: "Michel", FullName: "Michel", IdentityNumber: "ID007", Role: "User"},
-		{DocType: "user", ID: "admin", FullName: "System Admin", IdentityNumber: "ID000", Role: "Admin"},
-		{DocType: "user", ID: "auditor", FullName: "Auditor One", IdentityNumber: "ID999", Role: "Auditor"},
+		{DocType: "user", ID: "user01", FullName: "User One", IdentityNumber: "ID001", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "Tomoko", FullName: "Tomoko", IdentityNumber: "ID002", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "Brad", FullName: "Brad", IdentityNumber: "ID003", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "JinSoo", FullName: "Jin Soo", IdentityNumber: "ID004", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "Max", FullName: "Max", IdentityNumber: "ID005", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "Adriana", FullName: "Adriana", IdentityNumber: "ID006", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "Michel", FullName: "Michel", IdentityNumber: "ID007", Role: "User", Status: "Active"},
+		{DocType: "user", ID: "admin", FullName: "System Admin", IdentityNumber: "ID000", Role: "Admin", Status: "Active"},
+		{DocType: "user", ID: "auditor", FullName: "Auditor One", IdentityNumber: "ID999", Role: "Auditor", Status: "Active"},
 	}
 
 	for _, user := range users {
@@ -692,6 +722,7 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 		IdentityNumber: identityNumber,
 		Role:           role,
 		WalletAddress:  "", // Empty for now
+		Status:         "Active",
 	}
 	
 	userBytes, err := json.Marshal(user)

@@ -32,7 +32,7 @@ func main() {
 
 	// Connect to Fabric Service
 	log.Println("Connecting to Fabric Network Service...")
-	fabService, err := fabric.InitService()
+	fabService, err := fabric.NewService()
 	if err != nil {
 		log.Fatalf("Failed to connect to Fabric Service: %v", err)
 	}
@@ -241,9 +241,16 @@ func main() {
 
 		var passwordHash string
 		var role string
-		err := pgDB.QueryRow("SELECT password_hash, role FROM users WHERE id = $1", p.Username).Scan(&passwordHash, &role)
+		var status string
+		err := pgDB.QueryRow("SELECT password_hash, role, status FROM users WHERE id = $1", p.Username).Scan(&passwordHash, &role, &status)
 		if err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		}
+
+		// Check Lock Status
+		if status == "Locked" {
+			log.Printf("⛔ Blocked login attempt for LOCKED user: %s", p.Username)
+			return c.Status(403).JSON(fiber.Map{"error": "Account is Locked. Contact Administrator."})
 		}
 
 		if !auth.CheckPasswordHash(p.Password, passwordHash) {
@@ -321,7 +328,7 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 	})
 
 	// --- ADMIN SERVICE ---
-	admin.RegisterRoutes(protected, pgDB)
+	admin.RegisterRoutes(protected, pgDB, fabService)
 
 	
 	// Create Asset (Protected)

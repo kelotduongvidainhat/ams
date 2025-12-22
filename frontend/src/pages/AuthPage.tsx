@@ -42,7 +42,8 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                         id: response.user.id,
                         role: response.user.role,
                         full_name: response.user.id, // Fallback as login doesn't return full name yet
-                        identity_number: 'N/A'
+                        identity_number: 'N/A',
+                        status: 'Active' // Default status for logged in users
                     };
                     setMsg({ type: 'success', text: `Welcome back, ${user.id}!` });
                     setAuthenticatedUser(user);

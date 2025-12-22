@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     role            VARCHAR(50) CHECK (role IN ('Admin', 'Owner', 'Auditor', 'Viewer', 'User')),
     wallet_address  VARCHAR(255),
     password_hash   VARCHAR(255),
+    status          VARCHAR(20) DEFAULT 'Active',
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

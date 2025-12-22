@@ -27,26 +27,26 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// FabricService manages the gRPC connection and wallet for creating per-user contracts
-type FabricService struct {
+// Service manages the gRPC connection and wallet for creating per-user contracts
+type Service struct {
 	ClientConn *grpc.ClientConn
 	Wallet     *WalletManager
 }
 
-// InitService initializes the shared gRPC connection and Wallet Manager
-func InitService() (*FabricService, error) {
+// NewService initializes the shared gRPC connection and Wallet Manager
+func NewService() (*Service, error) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	wallet := NewWalletManager()
 
-	return &FabricService{
+	return &Service{
 		ClientConn: clientConnection,
 		Wallet:     wallet,
 	}, nil
 }
 
 // GetContractForUser creates a new Gateway connection for the specific user and returns the contract
-func (s *FabricService) GetContractForUser(username string) (*client.Contract, error) {
+func (s *Service) GetContractForUser(username string) (*client.Contract, error) {
 	id, sign, err := s.Wallet.GetUserIdentity(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load identity for user %s: %w", username, err)
@@ -77,7 +77,7 @@ func (s *FabricService) GetContractForUser(username string) (*client.Contract, e
 }
 
 // GetNetworkForUser creates a new Gateway connection for the specific user and returns the network
-func (s *FabricService) GetNetworkForUser(username string) (*client.Network, error) {
+func (s *Service) GetNetworkForUser(username string) (*client.Network, error) {
 	id, sign, err := s.Wallet.GetUserIdentity(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load identity for user %s: %w", username, err)

@@ -45,7 +45,10 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh JinSoo password
 ./scripts/enrollUser.sh Max password
 ./scripts/enrollUser.sh Adriana password
+./scripts/enrollUser.sh Adriana password
 ./scripts/enrollUser.sh Michel password
+./scripts/enrollUser.sh admin adminpw
+./scripts/enrollUser.sh auditor auditor123
 
 # 7. Launch Application
 echo "🚀 [Step 7/7] Launching Application (Frontend + Backend + DB)..."
