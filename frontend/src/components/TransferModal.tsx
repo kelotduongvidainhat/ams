@@ -21,9 +21,10 @@ export default function TransferModal({ assetId, currentOwner, onClose, onSucces
             alert(`Transfer initiated! Pending ID: ${result.pending_id}\n\nThe recipient (${newOwner}) must approve within 24 hours.`);
             onSuccess();
             onClose();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            alert(error.response?.data?.error || 'Transfer initiation failed');
+            const err = error as { response?: { data?: { error?: string } } };
+            alert(err.response?.data?.error || 'Transfer initiation failed');
         } finally {
             setLoading(false);
         }

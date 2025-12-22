@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { registerUser, login, setAuthToken } from '../services/api'; // Import new helpers
 import { Activity, LogIn } from 'lucide-react';
 import type { User } from '../types';
@@ -6,9 +7,10 @@ import AuthForm from '../components/auth/AuthForm';
 
 interface AuthPageProps {
     onLogin: (user: User) => void;
+    onExplore: () => void;
 }
 
-export default function AuthPage({ onLogin }: AuthPageProps) {
+export default function AuthPage({ onLogin, onExplore }: AuthPageProps) {
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState<{ type: 'error' | 'success', text: string } | null>(null);
@@ -63,9 +65,14 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                 setIsLogin(true); // Switch to login
                 setFormData(prev => ({ ...prev, password: '' }));
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            const errorText = err.response?.data?.error || err.message || 'Operation failed';
+            let errorText = 'Operation failed';
+            if (axios.isAxiosError(err) && err.response?.data?.error) {
+                errorText = err.response.data.error;
+            } else if (err instanceof Error) {
+                errorText = err.message;
+            }
             setMsg({ type: 'error', text: errorText });
         } finally {
             setLoading(false);
@@ -112,7 +119,7 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                         onSubmit={handleSubmit}
                     />
 
-                    <div className="mt-6 text-center">
+                    <div className="mt-6 space-y-4 text-center">
                         <button
                             onClick={() => setIsLogin(!isLogin)}
                             className="text-sm text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto"
@@ -123,6 +130,15 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
                                 <><LogIn size={14} /> Already have an ID? Login</>
                             )}
                         </button>
+
+                        <div className="pt-4 border-t border-white/5">
+                            <button
+                                onClick={onExplore}
+                                className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center gap-2 mx-auto"
+                            >
+                                <Activity size={14} /> Browse Public Explorer (No Login)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

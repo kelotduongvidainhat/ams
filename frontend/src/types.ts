@@ -51,3 +51,13 @@ export interface PendingTransfer {
     status: string;
     created_at: string;
 }
+
+export interface PublicAsset {
+    id: string;
+    name: string;
+    type: string;
+    owner: string;
+    status: string;
+    metadata_url: string;
+    last_tx_id?: string;
+}

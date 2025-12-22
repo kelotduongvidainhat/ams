@@ -460,6 +460,33 @@ sequenceDiagram
 
 ---
 
+### 7️⃣ **Search Assets (Filtered)**
+
+**Description**: Users filter public assets using specific criteria (Name, Owner, Type).
+
+```mermaid
+sequenceDiagram
+    participant Public as 🌐 Public User
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant DB as 💾 PostgreSQL
+
+    Public->>Frontend: Enter Search Criteria (e.g. Type="RealEstate")
+    Frontend->>Frontend: Construct Query (?type=RealEstate)
+    Frontend->>Backend: GET /api/explorer/assets?type=RealEstate
+    Backend->>DB: SELECT * FROM assets WHERE type='RealEstate'
+    DB-->>Backend: Filtered Result Set
+    Backend-->>Frontend: JSON [Asset1, Asset2...]
+    Frontend->>Frontend: Update Grid View (Filtered)
+```
+
+**Filters Supported**:
+- ✅ **Name**: Partial match (ILIKE)
+- ✅ **Owner**: Exact match
+- ✅ **Type**: Exact match (RealEstate, Art, Vehicle)
+
+---
+
 ### 📊 **Transaction Summary Table**
 
 | Operation | Endpoint | Auth | Multi-Sig | Blockchain | Database |
@@ -592,7 +619,7 @@ Core modules are completed (MVP Completed):
 *   **Planned Features**:
     *   **Dashboard Analytics**: Advanced data visualization.
     *   **Network Expansion**: Multi-organization setup.
-    *   **IPFS Integration**: Decentralized storage for asset metadata.
+    *   **IPFS Integration**: ✅ Completed (Decentralized storage for asset metadata).
     *   **Composite Key Status**: Refactor user locking to use composite keys (`status~userID`) for better concurrency at scale.
 
 ---

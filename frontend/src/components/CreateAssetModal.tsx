@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { createAsset } from '../services/api';
+import { createAsset, uploadToIPFS } from '../services/api';
 import type { User } from '../types';
-import { X, Box, Tag, Link, Loader2, Save } from 'lucide-react';
+import { X, Box, Tag, Link, Loader2, Save, Upload } from 'lucide-react';
 
 interface CreateAssetModalProps {
     onClose: () => void;
@@ -20,8 +20,26 @@ export default function CreateAssetModal({ onClose, onSuccess, currentUser }: Cr
         metadata_url: ''
     });
 
+    const [uploading, setUploading] = useState(false);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setUploading(true);
+            try {
+                const result = await uploadToIPFS(e.target.files[0]);
+                // Use gateway_url for immediate display, but we could store 'url' (ipfs://) if we had a resolver
+                setFormData({ ...formData, metadata_url: result.gateway_url });
+            } catch (err) {
+                console.error(err);
+                alert("IPFS Upload Failed");
+            } finally {
+                setUploading(false);
+            }
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -106,15 +124,22 @@ export default function CreateAssetModal({ onClose, onSuccess, currentUser }: Cr
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1.5 ml-1">Metadata URL (Off-chain)</label>
-                        <div className="relative">
-                            <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
-                            <input
-                                name="metadata_url" value={formData.metadata_url} onChange={handleChange}
-                                type="url" required placeholder="https://ipfs.io/ipfs/..."
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            />
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                                <input
+                                    name="metadata_url" value={formData.metadata_url} onChange={handleChange}
+                                    type="url" required placeholder="https://..."
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                />
+                            </div>
+                            <label className={`cursor-pointer px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 flex items-center gap-2 transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                <span className="text-sm">IPFS</span>
+                            </label>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 ml-1">Link to external JSON/PDF. Will be hashed On-chain.</p>
+                        <p className="text-xs text-slate-500 mt-1 ml-1">Enter external URL or upload to IPFS (Decentralized Storage).</p>
                     </div>
 
                     <div className="pt-4 flex items-center justify-end gap-3">

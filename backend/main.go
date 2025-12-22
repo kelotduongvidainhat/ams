@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"bytes"
+	"io"
+	"mime/multipart"
+	"net/http"
 
 	"os"
 	"github.com/gofiber/fiber/v2"
@@ -189,6 +193,65 @@ func main() {
 			return c.JSON(transactions)
 		})
 	}
+
+	// IPFS Upload Endpoint
+	api.Post("/ipfs/upload", func(c *fiber.Ctx) error {
+		fileHeader, err := c.FormFile("file")
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "No file uploaded"})
+		}
+		
+		file, err := fileHeader.Open()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to open file"})
+		}
+		defer file.Close()
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", fileHeader.Filename)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to create form file"})
+		}
+		
+		_, err = io.Copy(part, file)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to copy file"})
+		}
+		writer.Close()
+
+		ipfsHost := os.Getenv("IPFS_HOST")
+		if ipfsHost == "" {
+			ipfsHost = "ams-ipfs:5001"
+		}
+
+		resp, err := http.Post(fmt.Sprintf("http://%s/api/v0/add", ipfsHost), writer.FormDataContentType(), body)
+		if err != nil {
+			// Fallback for local development
+			resp, err = http.Post("http://localhost:5001/api/v0/add", writer.FormDataContentType(), body)
+			if err != nil {
+				return c.Status(502).JSON(fiber.Map{"error": "Failed to connect to IPFS Node: " + err.Error()})
+			}
+		}
+		defer resp.Body.Close()
+
+		var result struct {
+			Name string
+			Hash string
+			Size string
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to decode IPFS response"})
+		}
+
+		log.Printf("✅ Uploaded to IPFS: %s (Content ID: %s)", result.Name, result.Hash)
+
+		return c.JSON(fiber.Map{
+			"cid": result.Hash,
+			"url": fmt.Sprintf("ipfs://%s", result.Hash),
+			"gateway_url": fmt.Sprintf("http://localhost:8080/ipfs/%s", result.Hash),
+		})
+	})
 
 	// Health Check
 	api.Get("/health", func(c *fiber.Ctx) error {

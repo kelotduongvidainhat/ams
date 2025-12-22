@@ -55,6 +55,17 @@ export const createAsset = async (asset: Partial<Asset>) => {
     return response.data;
 };
 
+export const uploadToIPFS = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<{ cid: string; url: string; gateway_url: string }>('/ipfs/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
 // --- User API ---
 
 export const login = async (username: string, password: string) => {
@@ -62,7 +73,16 @@ export const login = async (username: string, password: string) => {
     return response.data;
 };
 
-export const registerUser = async (user: any) => {
+interface RegisterParams {
+    id?: string;
+    username?: string;
+    password?: string;
+    full_name?: string;
+    identity_number?: string;
+    [key: string]: string | undefined;
+}
+
+export const registerUser = async (user: RegisterParams) => {
     // Map to Wallet Request structure
     const payload = {
         username: user.id || user.username,

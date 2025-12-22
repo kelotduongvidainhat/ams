@@ -47,8 +47,9 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
             alert(result.message);
             onSuccess();
             fetchPendingTransfers();
-        } catch (error: any) {
-            alert(error.response?.data?.error || 'Approval failed');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { error?: string } } };
+            alert(err.response?.data?.error || 'Approval failed');
         } finally {
             setActionLoading(null);
         }
@@ -64,8 +65,9 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
             alert(result.message);
             onSuccess();
             fetchPendingTransfers();
-        } catch (error: any) {
-            alert(error.response?.data?.error || 'Rejection failed');
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { error?: string } } };
+            alert(err.response?.data?.error || 'Rejection failed');
         } finally {
             setActionLoading(null);
         }

@@ -49,6 +49,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
         // Poll for pending transfers every 30 seconds
         const interval = setInterval(fetchPendingCount, 30000);
         return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     const fetchData = async () => {
@@ -72,12 +73,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
         }
     };
 
-    const handleSearch = (id: string) => {
-        if (id.trim()) {
-            // Open History Modal for the searched ID (even if not in list)
-            setSelectedAssetForHistory({ ID: id.trim() } as Asset);
-        }
-    };
+
 
     // Filter Assets
     const myAssets = assets.filter(a => a.owner === currentUser.id);
@@ -157,10 +153,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                         {/* EXPLORER TAB */}
                         {activeTab === 'explorer' && (
                             <ExplorerView
-                                assets={publicAssets}
                                 currentUser={currentUser}
                                 onHistory={(a) => setSelectedAssetForHistory(a)}
-                                onSearch={handleSearch}
                             />
                         )}
                     </>

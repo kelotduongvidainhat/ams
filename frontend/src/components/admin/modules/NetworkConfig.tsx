@@ -3,9 +3,17 @@ import { Server, Activity, Network } from 'lucide-react';
 
 // import { getNetworkHealth } from '../../../services/api'; // Assume implemented
 
+interface NetworkHealth {
+    status: string;
+    peers: string[];
+    orderers: string[];
+    chaincode: string;
+    uptime: string;
+}
+
 export default function NetworkConfig() {
     // Mock data for now until API is fully ready
-    const [health] = useState<any>({
+    const [health] = useState<NetworkHealth>({
 
         status: "healthy",
         peers: ["peer0.org1.example.com", "peer1.org1.example.com", "peer2.org1.example.com"],

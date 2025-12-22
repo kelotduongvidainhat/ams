@@ -45,8 +45,24 @@ services:
     networks:
       - fabric_network
 
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ams-ipfs
+    restart: always
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ipfs_staging:/export
+    networks:
+      - fabric_network
+
 volumes:
   pgdata:
+  ipfs_data:
+  ipfs_staging:
 
 networks:
   fabric_network:

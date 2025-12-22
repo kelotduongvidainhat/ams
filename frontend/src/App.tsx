@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
+import PublicExplorer from './pages/PublicExplorer';
 import type { User } from './types';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isExplorer, setIsExplorer] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -20,8 +22,13 @@ function App() {
         <main>
           {currentUser ? (
             <Dashboard currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
+          ) : isExplorer ? (
+            <PublicExplorer onBack={() => setIsExplorer(false)} />
           ) : (
-            <AuthPage onLogin={(user) => setCurrentUser(user)} />
+            <AuthPage
+              onLogin={(user) => setCurrentUser(user)}
+              onExplore={() => setIsExplorer(true)}
+            />
           )}
         </main>
       </div>

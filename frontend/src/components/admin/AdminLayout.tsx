@@ -105,7 +105,7 @@ export default function AdminLayout({ currentUser, onLogout }: AdminLayoutProps)
     );
 }
 
-function SidebarItem({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
     return (
         <button
             onClick={onClick}

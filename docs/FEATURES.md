@@ -34,6 +34,7 @@ The AMS (Asset Management System) uses **Hyperledger Fabric** for blockchain tra
 - **Fabric Gateway**: Blockchain transaction submission
 - **Smart Contract (Chaincode)**: Business logic execution
 - **Event Listener**: Async synchronization to PostgreSQL
+- **IPFS Node**: Decentralized storage for asset metadata (images/docs)
 
 ---
 
@@ -286,7 +287,61 @@ viewers: ["EVERYONE"]    // Public
 
 ---
 
-### 6. Delete Asset (`DeleteAsset`)
+### 6. Search Assets (`SearchAssets`) - Off-Chain
+
+**Purpose**: Filter public assets without blockchain overhead.
+
+**API Endpoint**: `GET /api/explorer/assets`
+
+**Query Parameters**:
+- `search`: Partial name match
+- `owner`: Exact owner ID
+- `type`: Asset type
+
+### 8. IPFS Upload (Off-Chain Storage)
+**Purpose**: Store large files (Images, PDFs) in a decentralized manner.
+
+**API Endpoint**: `POST /api/ipfs/upload`
+
+**Request**: `multipart/form-data` (file)
+
+**Response**:
+```json
+{
+  "cid": "QmXyZ...",
+  "url": "ipfs://QmXyZ...",
+  "gateway_url": "http://localhost:8080/ipfs/QmXyZ..."
+}
+```
+
+**Architecture**:
+- Backend proxies file to local **IPFS Kubo** node (Port 5001).
+- IPFS generates a content-addressed Hash (CID).
+- Frontend saves this URL into the Asset's `metadata_url`.
+
+---
+
+### Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend
+    participant DB
+
+    User->>Backend: GET /explorer/assets?type=RealEstate
+    Backend->>DB: SELECT * FROM assets WHERE type='RealEstate'
+    DB-->>Backend: Result Set
+    Backend-->>User: JSON Response
+```
+
+**Benefits**:
+- 🚀 Zero blockchain latency
+- 🔍 Complex queries (SQL)
+- 🌐 No auth required (Public Data)
+
+---
+
+### 7. Delete Asset (`DeleteAsset`)
 
 **Purpose**: Mark asset as deleted (soft delete)
 
