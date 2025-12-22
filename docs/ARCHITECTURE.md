@@ -1,46 +1,46 @@
 # Hyperledger Fabric Network - 1 Org, 3 Orderers, 3 Peers
 
-Mạng lưới Hyperledger Fabric với cấu hình:
+Hyperledger Fabric network configuration:
 - **1 Organization**: Org1
 - **3 Orderers**: orderer1, orderer2, orderer3 (Raft consensus)
-- **3 Peers**: peer0, peer1, peer2 (thuộc Org1)
+- **3 Peers**: peer0, peer1, peer2 (belonging to Org1)
 
-## Cấu trúc thư mục
+## Directory Structure
 
 ```
 network/
-├── configtx.yaml                 # Cấu hình channel và genesis block
-├── network.sh                    # Script quản lý mạng lưới
+├── configtx.yaml                 # Channel configuration and genesis block
+├── network.sh                    # Network management script
 ├── docker/
-│   ├── docker-compose.yaml       # Docker compose cho peers và orderers
-│   └── docker-compose-ca.yaml    # Docker compose cho Certificate Authorities
-├── organizations/                # Chứa crypto material (sẽ được tạo tự động)
-├── channel-artifacts/            # Chứa channel artifacts
-└── system-genesis-block/         # Chứa genesis block
+│   ├── docker-compose.yaml       # Docker compose for peers and orderers
+│   └── docker-compose-ca.yaml    # Docker compose for Certificate Authorities
+├── organizations/                # Contains crypto material (auto-generated)
+├── channel-artifacts/            # Contains channel artifacts
+└── system-genesis-block/         # Contains genesis block
 
-scripts/                          # (Thư mục gốc)
-├── registerEnroll.sh             # Script đăng ký và enroll identities
-├── createChannel.sh              # Script tạo channel
-├── deployCC.sh                   # Script deploy chaincode
-├── deployCCAAS.sh                # Script deploy CCAAS
-└── envVar.sh                     # Biến môi trường
+scripts/                          # (Root directory)
+├── registerEnroll.sh             # Script to register and enroll identities
+├── createChannel.sh              # Script to create channel
+├── deployCC.sh                   # Script to deploy chaincode
+├── deployCCAAS.sh                # Script to deploy CCAAS
+└── envVar.sh                     # Environment variables
 ```
 
-## Yêu cầu
+## Requirements
 
-- Docker và Docker Compose
+- Docker and Docker Compose
 - Hyperledger Fabric binaries (fabric-ca-client, configtxgen, peer, osnadmin)
 
-## Cài đặt Fabric binaries
+## Fabric Binaries Installation
 
 ```bash
 cd /home/sleep/ams
 curl -sSL https://bit.ly/2ysbOFE | bash -s -- 2.5.9 1.5.12 -d -s
 ```
 
-## Hướng dẫn sử dụng
+## Usage Guide
 
-### 1. Khởi động mạng lưới
+### 1. Start the Network
 
 ```bash
 cd network
@@ -48,126 +48,121 @@ chmod +x network.sh ../scripts/*.sh
 ./network.sh up
 ```
 
-Lệnh này sẽ:
-- Khởi động 2 Certificate Authority servers (cho Org1 và Orderer Org)
-- Tạo crypto material cho tất cả peers và orderers
-- Khởi động 3 orderers và 3 peers
+This command will:
+- Start 2 Certificate Authority servers (for Org1 and Orderer Org)
+- Generate crypto material for all peers and orderers
+- Start 3 orderers and 3 peers
 
+### 2. Data Model (Asset Structure)
 
-### 3. Mô hình Dữ liệu (Asset Structure)
-
-Smart Contract (`basic`) đã được cập nhật để hỗ trợ mô hình tài sản tổng quát cho thương mại:
+The Smart Contract (`basic`) has been updated to support a generic commercial asset model:
 
 ```go
 type Asset struct {
     ID     string `json:"ID"`
-    Name   string `json:"name"`   // Ví dụ: "iPhone 15 Pro"
-    Type   string `json:"type"`   // Ví dụ: "Electronics", "RealEstate"
-    Owner  string `json:"owner"`  // Ví dụ: "Tomoko"
-    Value  int    `json:"value"`  // Giá trị định giá
-    Status string `json:"status"` // Ví dụ: "Available", "Sold"
+    Name   string `json:"name"`   // E.g., "iPhone 15 Pro"
+    Type   string `json:"type"`   // E.g., "Electronics", "RealEstate"
+    Owner  string `json:"owner"`  // E.g., "Tomoko"
+    Value  int    `json:"value"`  // Valuation
+    Status string `json:"status"` // E.g., "Available", "Sold"
 }
 ```
 
-### 4. Vận hành & Kiểm thử
+### 3. Operations & Testing
 
-#### Kiểm thử nhanh
-Sử dụng script `test_network.sh` để chạy kịch bản kiểm thử tự động (Query, Create, Transfer):
+#### Quick Test
+Use the `test_network.sh` script to run automated test scenarios (Query, Create, Transfer):
 
 ```bash
 cd network
 ./test_network.sh
 ```
 
-#### Các lệnh thủ công
+#### Manual Commands
 
-### 5. Tạo và join channel
+### 4. Create and Join Channel
 
 ```bash
 ./network.sh createChannel -c mychannel
 ```
 
-**Lưu ý**: Nếu gặp lỗi khi join peer1 và peer2, chạy lệnh sau để join thủ công:
+**Note**: If you encounter errors joining peer1 and peer2, run the following commands to join manually:
 
 ```bash
 docker exec -e CORE_PEER_ADDRESS=peer1.org1.example.com:8051 cli peer channel join -b ./channel-artifacts/mychannel.block
 docker exec -e CORE_PEER_ADDRESS=peer2.org1.example.com:9051 cli peer channel join -b ./channel-artifacts/mychannel.block
 ```
 
-### 6. Kiểm tra trạng thái mạng lưới
+### 5. Check Network Status
 
 ```bash
 chmod +x check-status.sh
 ./check-status.sh
 ```
 
-Script này sẽ hiển thị:
-- Trạng thái tất cả containers
-- Thông tin channel
-- Trạng thái từng peer
-- Trạng thái từng orderer
+This script will display:
+- Status of all containers
+- Channel information
+- Status of each peer
+- Status of each orderer
 
-### 4. Kiểm tra trạng thái thủ công
+### 6. Manual Status Check
 
 ```bash
-# Xem các containers đang chạy
+# View running containers
 docker ps
 
-# Kiểm tra channels mà peer đã join
+# Check channels joined by peer
 docker exec cli peer channel list
 
-# Kiểm tra thông tin channel
+# Check channel information
 docker exec cli peer channel getinfo -c mychannel
 
-# Xem logs của một container cụ thể
+# View logs of a specific container
 docker logs peer0.org1.example.com
 docker logs orderer1.example.com
 ```
 
-### 5. Deploy Chaincode (Sử dụng Chaincode-as-a-Service)
+### 7. Deploy Chaincode (Using Chaincode-as-a-Service)
 
-Hệ thống sử dụng mô hình CCAAS (Chaincode-as-a-Service) để tránh lỗi build Docker-in-Docker. Chaincode chạy dưới dạng Docker container riêng biệt.
+The system uses the CCAAS (Chaincode-as-a-Service) model to avoid Docker-in-Docker build issues. The chaincode runs as a separate Docker container.
 
 ```bash
-# Deploy chaincode cơ bản (Asset Transfer)
+# Deploy basic chaincode (Asset Transfer)
 ./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0
 ```
 
-Lệnh này sẽ:
-1. Build Docker image cho chaincode
-2. Chạy container chaincode (tên `basic_1.0`)
-3. Cài đặt connection profile lên Peer
-4. Approve, Commit và Init chaincode
+This command will:
+1. Build the Docker image for the chaincode
+2. Run the chaincode container (named `basic_1.0`)
+3. Install the connection profile on the Peer
+4. Approve, Commit, and Init the chaincode
 
-Kiểm tra chaincode hoạt động:
+Verify chaincode operation:
 ```bash
-# Query tất cả tài sản
+# Query all assets
 docker exec cli peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
 ```
 
-### 6. Tắt mạng lưới
+### 8. Shutdown the Network
 
 ```bash
 ./network.sh down
 ```
 
-Lệnh này sẽ xóa toàn bộ container, volumes và artifacts (bao gồm cả crypto material).
+This command will remove all containers, volumes, and artifacts (including crypto material).
 
-## Tài liệu tham khảo
+## References
 
-- [Hướng dẫn chi tiết về CCAAS và Quá trình Debug](docs/CCAAS_THEORY_AND_PRACTICE.md): Đọc tài liệu này để hiểu sâu về kiến trúc Chaincode-as-a-Service và cách khắc phục các lỗi mạng lưới.
+- [Detailed Guide on CCAAS and Debugging](docs/CCAAS_THEORY_AND_PRACTICE.md): Read this document to understand the Chaincode-as-a-Service architecture and how to troubleshoot network issues.
 
-
-
-Lệnh này sẽ dọn dẹp tất cả containers, volumes và crypto material.
-
-### 5. Khởi động lại mạng lưới
+### 9. Restart the Network
 
 ```bash
 ./network.sh restart
 ```
 
-## Thông tin kết nối
+## Connection Information
 
 ### Orderers
 - orderer1.example.com:7050 (Admin: 7053)
@@ -183,18 +178,18 @@ Lệnh này sẽ dọn dẹp tất cả containers, volumes và crypto material.
 - ca-org1: localhost:7054
 - ca-orderer: localhost:9054
 
-## Sử dụng CLI
+## Using CLI
 
-Bạn có thể truy cập vào CLI container để thực hiện các lệnh peer:
+You can access the CLI container to execute peer commands:
 
 ```bash
 docker exec -it cli bash
 ```
 
-Trong CLI container, bạn có thể:
+Inside the CLI container, you can:
 
 ```bash
-# Kiểm tra channel đã join
+# Check joined channels
 peer channel list
 
 # Query chaincode
@@ -206,58 +201,56 @@ peer chaincode invoke -o orderer1.example.com:7050 --tls --cafile /opt/gopath/sr
 
 ## Troubleshooting
 
-### Kiểm tra logs
+### Check Logs
 ```bash
 docker logs -f peer0.org1.example.com
 docker logs -f orderer1.example.com
 ```
 
-### Dọn dẹp hoàn toàn
+### Full Cleanup
 ```bash
 ./network.sh down
 docker system prune -a --volumes
 ```
 
-### Kiểm tra network
+### Check Network
 ```bash
 docker network ls | grep fabric_network
 ```
 
-## Lưu ý
+## Notes
 
-- Mạng lưới sử dụng TLS cho tất cả các kết nối
-- Raft consensus yêu cầu ít nhất 2/3 orderers hoạt động
-- Tất cả crypto material được tạo tự động bởi Fabric CA
-- Channel được tạo với profile "ChannelUsingRaft"
-
+- The network uses TLS for all connections.
+- Raft consensus requires at least 2/3 orderers to be active.
+- All crypto material is auto-generated by Fabric CA.
+- The channel is created with the profile "ChannelUsingRaft".
 
 ---
 
-
 # AMS Backend API
 
-RESTful API Gateway kết nối Frontend với Hyperledger Fabric Blockchain.
+RESTful API Gateway connecting Frontend to Hyperledger Fabric Blockchain.
 
-## Công nghệ
+## Technology
 *   **Language**: Go 1.24+
 *   **Web Framework**: Fiber v2
 *   **Blockchain SDK**: Fabric Gateway Client for Go
 
-## Cấu trúc
+## Structure
 ```
 backend/
-├── fabric/       # Logic kết nối Blockchain (Client, Identity, Signing)
+├── fabric/       # Blockchain connection logic (Client, Identity, Signing)
 ├── main.go       # API Entrypoint (Routes, Handlers)
 └── go.mod        # Dependency Management
 ```
 
-## Hướng dẫn Chạy
+## Running Instructions
 
-**Tiền đề**:
-1.  Mạng lưới Fabric (`../network`) phải đang chạy.
-2.  Chaincode `basic` đã được deploy.
+**Prerequisites**:
+1.  Fabric Network (`../network`) must be running.
+2.  Chaincode `basic` must be deployed.
 
-**Thực thi**:
+**Execution**:
 ```bash
 cd backend
 go run main.go
@@ -271,7 +264,7 @@ go run main.go
 
 ### 2. Get All Assets
 *   **URL**: `GET /api/assets`
-*   **Response**: Danh sách toàn bộ tài sản từ Blockchain.
+*   **Response**: List of all assets from the Blockchain.
 
 ### 3. Create Asset
 *   **URL**: `POST /api/assets`
@@ -288,8 +281,8 @@ go run main.go
     }
     ```
 *   **Logic**:
-    1.  Tính SHA-256 Hash từ `metadata_url` + `name` (Giả lập logic tính hash file).
-    2.  Gửi giao dịch `CreateAsset` lên Blockchain với Hash vừa tạo.
+    1.  Calculate SHA-256 Hash from `metadata_url` + `name` (Simulating file hash calculation).
+    2.  Submit `CreateAsset` transaction to Blockchain with the generated Hash.
 
 ### 6. Admin Service (Protected)
 Requires JWT Token with `role: Admin`.
@@ -302,21 +295,19 @@ Requires JWT Token with `role: Admin`.
     *   **URL**: `GET /api/protected/admin/users`
     *   **Response**: List of users with wallet status and identity details.
 
-
 ---
-
 
 # AMS Frontend Web App
 
-Giao diện người dùng hiện đại quản lý tài sản trên Blockchain.
+Modern user interface for managing assets on the Blockchain.
 
-## Công nghệ
+## Technology
 *   **Framework**: React (Vite) + TypeScript
 *   **Styling**: Tailwind CSS (Glassmorphism Design)
 *   **Icons**: Lucide-React
 *   **Integration**: Axios (connects to Backend API)
 
-## Cấu trúc
+## Structure
 ```
 frontend/
 ├── src/
@@ -327,23 +318,21 @@ frontend/
 └── vite.config.ts   # Proxy Config (/api -> localhost:3000)
 ```
 
-## Hướng dẫn Chạy
+## Running Instructions
 
-1.  Đảm bảo **Backend** đang chạy (`cd backend && go run main.go`).
-2.  Chạy Frontend:
+1.  Ensure **Backend** is running (`cd backend && go run main.go`).
+2.  Run Frontend:
     ```bash
     cd frontend
     npm run dev
     ```
-3.  Truy cập: `http://localhost:5173`
+3.  Access: `http://localhost:5173`
 
-## Tính năng
-*   **Asset Portfolio**: Xem danh sách tài sản trực quan dạng thẻ.
-*   **Integrity Check**: Hiển thị Hash metadata on-chain để chứng minh tính toàn vẹn.
-
+## Features
+*   **Asset Portfolio**: View assets visually as cards.
+*   **Integrity Check**: Display on-chain metadata Hash to prove integrity.
 
 ---
-
 
 # 🗄️ Database Schema & Management
 

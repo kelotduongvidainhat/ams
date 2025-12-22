@@ -40,33 +40,28 @@ ams/
 
 ## 🚀 Quick Start Guide
 
-### 1. System Requirements
-*   Docker & Docker Compose
-*   Go (Golang) v1.20+
+### 1. Quick Start (Recommended)
 
-### 2. "Fresh Start" Process
-
-#### 🚀 Automation (Recommended)
-
-Use the automated script to perform the entire process:
+We provide a specialized setup script that checks dependencies (Go, Docker, jq) and automatically downloads the necessary Hyperledger Fabric binaries.
 
 ```bash
-# At the root directory ams/
+# 1. Run the one-time setup script
+./scripts/setup.sh
+
+# 2. Start the system (Fresh Start)
 sudo ./scripts/fresh_start.sh
 ```
 
-This script will automatically perform the following **12 steps**:
-- Clean up the old system
-- Start Fabric network + Deploy Chaincode
-- Register users + Create Wallets
-- Launch Application + Initialize Database
-- Create Sample Data (Sample Assets)
-- Sync Users + Set Passwords
-- **Enforce Security Policies**
+**`fresh_start.sh`** will automatically:
+1.  Clean up any old containers/networks.
+2.  Start the Fabric Network (3 Orderers, 3 Peers).
+3.  Deploy the Chaincode (CCAAS).
+4.  Enroll Users & Create Wallets.
+5.  Launch the App (Frontend + Backend + DB).
+6.  Generate Sample Data.
 
-#### 📋 Manual Steps
+### 2. Manual Installation
 
-If you want to perform each step manually, follow these instructions:
 
 **Step 1: Clean up old system**
 ```bash
