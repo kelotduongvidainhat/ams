@@ -1,105 +1,107 @@
 # AMS - Asset Management System (Hyperledger Fabric)
 
-Dự án triển khai mạng lưới blockchain riêng tư sử dụng **Hyperledger Fabric v2.5** với mô hình triển khai Chaincode hiện đại **Chaincode-as-a-Service (CCAAS)**.
+This project implements a private blockchain network using **Hyperledger Fabric v2.5** with the modern **Chaincode-as-a-Service (CCAAS)** deployment model.
 
-## 🌟 Tính năng nổi bật
+## 🌟 Key Features
 
-*   **Kiến trúc mạng lưới**: 1 Organization, 3 Orderers (Raft Consensus), 3 Peers.
-*   **Chaincode-as-a-Service (CCAAS)**: Chaincode chạy dưới dạng Docker container độc lập, loại bỏ sự phụ thuộc vào Docker-in-Docker của Peer, tăng tính ổn định và dễ dàng debug.
-*   **Tự động hóa**: Scripts thông minh tự động hóa toàn bộ quy trình từ khởi tạo mạng, tạo channel đến deploy chaincode.
-*   **Asset Management**: Tích hợp sẵn chaincode quản lý tài sản thương mại (ID, Name, Type, Owner, Status, Metadata).
-*   **Multi-Signature Transfers**: Chuyển giao tài sản yêu cầu xác nhận từ 2 bên (người gửi + người nhận) với thời hạn 24 giờ.
-*   **Wallet-as-a-Service**: Đăng ký người dùng mới trực tiếp qua API, tự động tạo ví blockchain.
+*   **Network Architecture**: 1 Organization, 3 Orderers (Raft Consensus), 3 Peers.
+*   **Chaincode-as-a-Service (CCAAS)**: Chaincode runs as an independent Docker container, eliminating the dependency on Docker-in-Docker of the Peer, increasing stability and facilitating debugging.
+*   **Automation**: Smart scripts automate the entire process from initializing the network, creating the channel, to deploying the chaincode.
+*   **Asset Management**: Integrated chaincode for commercial asset management (ID, Name, Type, Owner, Status, Metadata).
+*   **Multi-Signature Transfers**: Asset transfers require confirmation from both parties (sender + recipient) within 24 hours.
+*   **Wallet-as-a-Service**: Register new users directly via API, automatically creating blockchain wallets.
+*   **Admin & Security**: User locking capability, Admin Dashboard, and RBAC implementation.
 
-## 📂 Cấu trúc dự án
+## 📂 Project Structure
 
 ```
 ams/
 ├── backend/              # Backend API Service (Golang)
-│   ├── fabric/           # SDK Client kết nối Ledger
-│   ├── sync/             # Service đồng bộ Ledger sang SQL
+│   ├── fabric/           # SDK Client connecting to Ledger
+│   ├── sync/             # Service syncing Ledger to SQL
 │   └── main.go           # Entry point
 ├── frontend/             # Web Application (React + Vite + Tailwind)
 │   ├── src/              # Source code components, pages, services
-│   └── Dockerfile        # Cấu hình container hóa Frontend
-├── database/             # Database Off-chain (PostgreSQL)
-│   └── schema.sql        # Cấu trúc bảng (Users, History...)
+│   └── Dockerfile        # Docker configuration for Frontend
+├── database/             # Off-chain Database (PostgreSQL)
+│   └── schema.sql        # Table structure (Users, History...)
 ├── network/              # Core Hyperledger Fabric Network
 │   ├── chaincode/        # Smart Contracts (Asset Transfer)
-│   ├── docker/           # Docker Compose cho Peers/Orderers/CAs
-│   ├── network.sh        # Script quản lý vòng đời mạng lưới
-│   ├── test_network.sh   # Script e2e testing
-│   └── configtx.yaml     # Cấu hình Channel
+│   ├── docker/           # Docker Compose for Peers/Orderers/CAs
+│   ├── network.sh        # Network lifecycle management script
+│   ├── test_network.sh   # E2E testing script
+│   └── configtx.yaml     # Channel configuration
 ├── scripts/              # Utility Scripts (Deploy, Create Channel...)
 ├── bin/                  # Fabric Binaries
 ├── config/               # Fabric Core Configs
 ├── builders/             # CCAAS External Builders
-└── docker-compose-app.yaml # Orchestration cho App (BE + FE + DB)
+└── docker-compose-app.yaml # Orchestration for App (BE + FE + DB)
 ```
 
-## 🚀 Hướng dẫn bắt đầu (Quick Start)
+## 🚀 Quick Start Guide
 
-### 1. Yêu cầu hệ thống
+### 1. System Requirements
 *   Docker & Docker Compose
 *   Go (Golang) v1.20+
 
-### 2. Quy trình "Fresh Start" (Khởi chạy sạch)
+### 2. "Fresh Start" Process
 
-#### 🚀 Tự động hóa (Khuyến nghị)
+#### 🚀 Automation (Recommended)
 
-Sử dụng script tự động để thực hiện toàn bộ quy trình:
+Use the automated script to perform the entire process:
 
 ```bash
-# Tại thư mục gốc ams/
+# At the root directory ams/
 sudo ./scripts/fresh_start.sh
 ```
 
-Script này sẽ tự động thực hiện **12 bước** bên dưới, bao gồm:
-- Dọn dẹp hệ thống cũ
-- Khởi động mạng Fabric + Deploy Chaincode
-- Đăng ký người dùng + Tạo ví (Wallet)
-- Khởi chạy ứng dụng + Khởi tạo Database
-- Tạo dữ liệu mẫu (Sample Assets)
-- Đồng bộ người dùng + Thiết lập mật khẩu
+This script will automatically perform the following **12 steps**:
+- Clean up the old system
+- Start Fabric network + Deploy Chaincode
+- Register users + Create Wallets
+- Launch Application + Initialize Database
+- Create Sample Data (Sample Assets)
+- Sync Users + Set Passwords
+- **Enforce Security Policies**
 
-#### 📋 Quy trình Thủ công (Manual Steps)
+#### 📋 Manual Steps
 
-Nếu bạn muốn thực hiện từng bước một, hãy làm theo hướng dẫn sau:
+If you want to perform each step manually, follow these instructions:
 
-**Bước 1: Dọn dẹp hệ thống cũ**
+**Step 1: Clean up old system**
 ```bash
-# Tại thư mục gốc ams/
+# At the root directory ams/
 docker-compose -f docker-compose-app.yaml down --remove-orphans
-docker system prune -f --volumes # Xóa container và volume rác
+docker system prune -f --volumes # Remove container and volume garbage
 
 cd network
 ./network.sh down
 cd ..
 
-# Xóa MSP artifacts (nếu cần)
+# Remove MSP artifacts (if needed)
 sudo rm -rf network/organizations/fabric-ca/org1/msp network/organizations/fabric-ca/ordererOrg/msp
 ```
 
-**Bước 2: Khởi động Mạng lưới Fabric**
+**Step 2: Start Fabric Network**
 ```bash
 cd network
 ./network.sh up
 ./network.sh createChannel -c mychannel
 ```
 
-**Bước 3: Deploy Chaincode (CCAAS)**
+**Step 3: Deploy Chaincode (CCAAS)**
 ```bash
 ./network.sh deployCC -ccn basic -ccp ./chaincode/asset-transfer -ccv 1.0 -ccs 1
 cd ..
 ```
 
-**Bước 4: Đăng ký Danh tính Người dùng (Real Identity)**
+**Step 4: Register User Identities (Real Identity)**
 
-Trước khi khởi chạy ứng dụng, bạn cần đăng ký danh tính cho các người dùng thực để tạo ví (Wallet) dùng để ký giao dịch:
+Before launching the application, you need to register identities for real users to create Wallets used to sign transactions:
 ```bash
 chmod +x scripts/enrollUser.sh
 
-# Đăng ký các user mẫu (Tomoko, Brad, JinSoo, Max...)
+# Register sample users (Tomoko, Brad, JinSoo, Max...)
 ./scripts/enrollUser.sh Tomoko password
 ./scripts/enrollUser.sh Brad password
 ./scripts/enrollUser.sh JinSoo password
@@ -108,57 +110,57 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh Michel password
 ```
 
-**Bước 5: Khởi chạy Ứng dụng (App)**
+**Step 5: Launch Application (App)**
 ```bash
 docker-compose -f docker-compose-app.yaml up -d --build
 ```
 
-**Bước 6: Khởi tạo Database (Init Schema)**
+**Step 6: Initialize Database (Init Schema)**
 
-Chờ khoảng 10s để container database khởi động hoàn tất, sau đó nạp cấu trúc bảng:
+Wait about 10s for the database container to fully start, then load the table structure:
 ```bash
 sleep 10
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql
 ```
 
-**Bước 7: Tạo Dữ liệu Mẫu (Sample Data)**
+**Step 7: Create Sample Data**
 
-Tạo các tài sản mẫu cho người dùng:
+Create sample assets for users:
 ```bash
 ./scripts/create_sample_data.sh
 ```
 
-**Bước 8: Tạo Người dùng Test với Mật khẩu**
+**Step 8: Create Test User with Password**
 
-Tạo tài khoản `demo_user` để test tính năng đăng nhập:
+Create `demo_user` account to test login features:
 ```bash
-sleep 3 # Chờ backend sẵn sàng
+sleep 3 # Wait for backend to be ready
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{"id": "demo_user", "full_name": "Demo User", "identity_number": "DEMO001", "role": "User", "password": "demo123"}'
 ```
 
-**Bước 9: Đồng bộ Người dùng từ Blockchain sang PostgreSQL**
+**Step 9: Sync Users from Blockchain to PostgreSQL**
 
-Đồng bộ tất cả người dùng từ Ledger sang database Off-chain:
+Sync all users from Ledger to Off-chain database:
 ```bash
 ./scripts/sync_users.sh
 ```
 
-**Bước 10: Thiết lập Mật khẩu cho Tất cả Người dùng**
+**Step 10: Set Passwords for All Users**
 
-Thêm mật khẩu cho các người dùng đã được đăng ký:
+Add passwords for the registered users:
 ```bash
 ./scripts/add_passwords.sh
 ```
 
-**Bước 11: Kiểm tra Truy cập**
+**Step 11: Check Access**
 
 *   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend Health**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 *   **Public Explorer**: [http://localhost:3000/api/explorer/assets](http://localhost:3000/api/explorer/assets)
 
-**Bước 12: Test Đăng nhập**
+**Step 12: Test Login**
 
 ```bash
 # Test JWT Authentication
@@ -170,9 +172,9 @@ curl -X POST http://localhost:3000/api/auth/login \
 curl "http://localhost:3000/api/assets?user_id=Tomoko"
 ```
 
-#### 🔐 Thông tin Đăng nhập
+#### 🔐 Login Information
 
-Sau khi hoàn tất Fresh Start, bạn có thể đăng nhập với các tài khoản sau:
+After completing Fresh Start, you can log in with the following accounts:
 
 | Username | Password | Role | Wallet |
 |----------|----------|------|--------|
@@ -187,9 +189,9 @@ Sau khi hoàn tất Fresh Start, bạn có thể đăng nhập với các tài k
 | `auditor` | `auditor123` | Auditor | ✓ |
 | `user01` | `user01123` | User | ✓ |
 
-#### 🆕 Đăng ký Người dùng Mới (Qua API - WaaS)
+#### 🆕 Register New User (Via API - WaaS)
 
-Bạn cũng có thể đăng ký người dùng mới trực tiếp thông qua API:
+You can also register new users directly via API:
 
 ```bash
 curl -X POST http://localhost:3000/api/wallet/register \
@@ -197,11 +199,11 @@ curl -X POST http://localhost:3000/api/wallet/register \
   -d '{"username": "NewUser", "password": "password", "full_name": "New User", "identity_number": "ID-NEW"}'
 ```
 
-## 🔄 Luồng Giao dịch (Transaction Flows)
+## 🔄 Transaction Flows
 
-### 1️⃣ **Tạo Tài sản (Create Asset)**
+### 1️⃣ **Create Asset**
 
-**Mô tả**: Người dùng tạo tài sản mới trên blockchain.
+**Description**: User creates a new asset on the blockchain.
 
 ```mermaid
 sequenceDiagram
@@ -239,17 +241,17 @@ sequenceDiagram
 }
 ```
 
-**Kết quả**:
-- ✅ Tài sản được ghi vào blockchain
-- ✅ Metadata hash được tự động tính toán
-- ✅ Owner được set là người tạo
-- ✅ Đồng bộ vào PostgreSQL qua event listener
+**Result**:
+- ✅ Asset written to blockchain
+- ✅ Metadata hash automatically calculated
+- ✅ Owner set as creator
+- ✅ Synced to PostgreSQL via event listener
 
 ---
 
-### 2️⃣ **Chuyển giao Tài sản - Multi-Signature (Transfer Asset)**
+### 2️⃣ **Transfer Asset - Multi-Signature**
 
-**Mô tả**: Chuyển giao tài sản yêu cầu xác nhận từ **2 bên** (người gửi + người nhận) trong vòng **24 giờ**.
+**Description**: Asset transfer requires confirmation from **2 parties** (sender + recipient) within **24 hours**.
 
 ```mermaid
 sequenceDiagram
@@ -303,10 +305,10 @@ sequenceDiagram
 - **T+24h**: Expires if not approved ❌
 
 **API Endpoints**:
-1. `POST /api/protected/transfers/initiate` - Khởi tạo
-2. `GET /api/protected/transfers/pending` - Xem pending
-3. `POST /api/protected/transfers/:id/approve` - Chấp nhận
-4. `POST /api/protected/transfers/:id/reject` - Từ chối
+1. `POST /api/protected/transfers/initiate` - Initiate
+2. `GET /api/protected/transfers/pending` - View pending
+3. `POST /api/protected/transfers/:id/approve` - Approve
+4. `POST /api/protected/transfers/:id/reject` - Reject
 
 **Database Tables**:
 ```sql
@@ -323,9 +325,9 @@ transfer_signatures (
 
 ---
 
-### 3️⃣ **Cập nhật Tài sản (Update Asset)**
+### 3️⃣ **Update Asset**
 
-**Mô tả**: Chủ sở hữu hoặc Admin có thể cập nhật thông tin tài sản.
+**Description**: Owner or Admin can update asset information.
 
 ```mermaid
 sequenceDiagram
@@ -352,20 +354,20 @@ sequenceDiagram
 ```
 
 **Editable Fields**:
-- ✅ `name` - Tên tài sản
-- ✅ `status` - Trạng thái (Available, Locked, Under Maintenance)
-- ✅ `metadata_url` - URL metadata (auto-recalculates hash)
+- ✅ `name` - Asset name
+- ✅ `status` - Status (Available, Locked, Under Maintenance)
+- ✅ `metadata_url` - Metadata URL (auto-recalculates hash)
 
 **Immutable Fields**:
-- ❌ `ID` - Không thể thay đổi
-- ❌ `type` - Không thể thay đổi
-- ❌ `owner` - Chỉ thay đổi qua Transfer
+- ❌ `ID` - Cannot participate
+- ❌ `type` - Cannot change
+- ❌ `owner` - Only changes via Transfer
 
 ---
 
-### 4️⃣ **Chia sẻ Quyền xem (Grant Access)**
+### 4️⃣ **Grant Access**
 
-**Mô tả**: Cho phép người dùng khác xem tài sản riêng tư.
+**Description**: Allow other users to view private assets.
 
 ```mermaid
 sequenceDiagram
@@ -392,15 +394,15 @@ sequenceDiagram
 ```
 
 **Access Control**:
-- `viewers: []` - Private (chỉ owner)
-- `viewers: ["Brad"]` - Brad có thể xem
+- `viewers: []` - Private (owner only)
+- `viewers: ["Brad"]` - Brad can view
 - `viewers: ["EVERYONE"]` - Public
 
 ---
 
-### 5️⃣ **Xem Lịch sử (View History)**
+### 5️⃣ **View History**
 
-**Mô tả**: Xem toàn bộ lịch sử thay đổi của tài sản từ blockchain.
+**Description**: View entire asset mutation history from blockchain.
 
 ```mermaid
 sequenceDiagram
@@ -437,7 +439,7 @@ sequenceDiagram
 
 ### 6️⃣ **Public Explorer**
 
-**Mô tả**: Xem tất cả tài sản công khai từ PostgreSQL (không cần đăng nhập).
+**Description**: View all public assets from PostgreSQL (no login required).
 
 ```mermaid
 sequenceDiagram
@@ -477,183 +479,132 @@ sequenceDiagram
 
 ---
 
-##  Thiết kế Hệ thống Mở rộng (System Design Spec)
+## System Design Spec (Expanded)
 
-Dưới đây là đặc tả mô hình dữ liệu cho các phiên bản phát triển tiếp theo:
+Below is the data model specification for upcoming versions:
 
-### 1. Thực thể Người dùng & Tổ chức (Users & Organizations)
-Quản lý các bên tham gia vào mạng lưới (Chủ sở hữu, Cơ quan quản lý, Công chứng viên).
+### 1. Users & Organizations
+Managing participants (Owners, Regulators, Notaries).
 
-*   **Users (Người dùng)**
-    *   `user_id` (PK): Định danh duy nhất.
-    *   `full_name`: Tên đầy đủ.
-    *   `identity_number`: Số CCCD/Passport.
-    *   `wallet_address`: Địa chỉ ví Blockchain (dùng để ký giao dịch).
-    *   `role_id` (FK): Liên kết với bảng vai trò.
+*   **Users**
+    *   `user_id` (PK): Unique ID.
+    *   `full_name`: Full Name.
+    *   `identity_number`: Citizen ID/Passport.
+    *   `wallet_address`: Blockchain Wallet Address.
+    *   `role_id` (FK): Role Link.
 
-*   **Roles (Vai trò)**
-    *   `role_id` (PK): Admin, Owner, Validator (Người xác thực), v.v.
+*   **Roles**
+    *   `role_id` (PK): Admin, Owner, Validator, etc.
 
-### 2. Thực thể Tài sản (Assets)
-Tài sản có thể là Đất đai, Xe cộ, hoặc Tranh ảnh nghệ thuật.
+### 2. Assets
+Assets can be Real Estate, Vehicles, or Art.
 
-*   **Assets (Tài sản)**
-    *   `asset_id` (PK): Mã tài sản trên hệ thống.
-    *   `asset_type`: Loại tài sản (Land, Vehicle, Art).
-    *   `metadata_url`: Đường dẫn đến file chứa thông tin chi tiết (JSON Off-chain).
-    *   `metadata_hash`: Mã băm SHA-256 của file metadata (Integrity Check).
-    *   `current_owner_id` (FK): Liên kết với Users.
-    *   `status`: Trạng thái (Active, Pending Transfer, Frozen).
-    *   `blockchain_tx_hash`: Mã giao dịch khởi tạo trên Blockchain.
+*   **Assets**
+    *   `asset_id` (PK): Asset ID.
+    *   `asset_type`: Land, Vehicle, Art.
+    *   `metadata_url`: Link to detailed file (JSON Off-chain).
+    *   `metadata_hash`: SHA-256 Hash of metadata file (Integrity Check).
+    *   `current_owner_id` (FK): Link to Users.
+    *   `status`: Active, Pending Transfer, Frozen.
+    *   `blockchain_tx_hash`: Creation Transaction Hash.
 
-*   **Asset_Details** (Chi tiết tài sản): Tạm thời quản lý qua Metadata URL hoặc tách bảng tùy loại.
+### 3. Transactions
+Storage of ownership history and attestations.
 
-### 3. Thực thể Giao dịch & Chuyển nhượng (Transactions)
-Lưu trữ lịch sử thay đổi chủ sở hữu và chứng thực.
+*   **Transactions**
+    *   `tx_id` (PK): Transaction ID.
+    *   `asset_id` (FK): Asset.
+    *   `from_user_id` (FK): Seller/Sender.
+    *   `to_user_id` (FK): Buyer/Receiver.
+    *   `validator_id` (FK): Approval agency.
+    *   `timestamp`: Time of execution.
+    *   `blockchain_status`: Pending, Confirmed, Failed.
 
-*   **Transactions (Giao dịch)**
-    *   `tx_id` (PK): Mã giao dịch hệ thống.
-    *   `asset_id` (FK): Tài sản giao dịch.
-    *   `from_user_id` (FK): Người bán/chuyển nhượng.
-    *   `to_user_id` (FK): Người mua/nhận.
-    *   `validator_id` (FK): Cơ quan phê duyệt (đối với mạng Permissioned).
-    *   `timestamp`: Thời gian thực hiện.
-    *   `blockchain_status`: Trạng thái (Pending, Confirmed, Failed).
-    *   `smart_contract_address`: Địa chỉ hợp đồng thực thi.
+### 4. Access Control & Security
+Hybrid **RBAC** (Role-Based) and **ABAC** (Attribute-Based).
 
-### 4. Quản lý Quyền truy cập & Bảo mật (Access Control & Security)
-Hệ thống sử dụng mô hình kết hợp **RBAC** (Role-Based) và **ABAC** (Attribute-Based) để kiểm soát quyền truy cập tài sản.
+*   **Role-Based:**
+    *   `Admin`: View **all** assets/transactions.
+    *   `Owner`: View, Transfer, Grant Access to owned assets.
+    *   `Auditor`: View transaction history for compliance.
+    *   `Viewer`: Granted access to specific assets.
 
-*   **Role-Based (Vai trò):**
-    *   `Admin`: Có quyền xem **toàn bộ** tài sản và giao dịch trên mạng lưới.
-    *   `Owner`: Có quyền xem, chuyển nhượng (Transfer) và chia sẻ (Grant Access) tài sản mình sở hữu.
-    *   `Auditor`: Có quyền xem lịch sử giao dịch để kiểm toán (Compliance).
-    *   `Viewer`: Người dùng được cấp quyền xem tài sản cụ thể.
+*   **Attribute-Based:**
+    *   Each asset has `viewers`: List of UserIDs.
+    *   **Private by Default**: Only Owner sees newly created assets.
 
-*   **Attribute-Based (Thuộc tính):**
-    *   Mỗi tài sản có danh sách `viewers`: Danh sách UserID được phép xem.
-    *   Cơ chế **Private by Default**: Tài sản khi tạo mới chỉ Owner nhìn thấy.
-
-### 5. Truy xuất Nguồn gốc (Asset Provenance)
-Lưu trữ toàn bộ lịch sử vòng đời của tài sản (Chain of Custody).
+### 5. Asset Provenance
+Full lifecycle history (Chain of Custody).
 
 *   **History Records**:
-    *   Mỗi bản ghi chứa: `TxID`, `Timestamp`, `Asset State Snapshot`.
-    *   Cho phép người dùng xem lại quá trình chuyển nhượng: Từ ai -> Sang ai -> Vào lúc nào.
+    *   Contains `TxID`, `Timestamp`, `Asset State Snapshot`.
 
-### 6. Chiến lược Dữ liệu (Data Strategy: On-chain vs Off-chain)
+### 6. Data Strategy (On-chain vs Off-chain)
 
-Để tối ưu hóa hiệu năng và đảm bảo tính toàn vẹn, hệ thống phân chia dữ liệu như sau:
-
-| Loại Dữ liệu | Vị trí Lưu trữ | Chi tiết | Lý do |
+| Data Type | Storage | Details | Reason |
 | :--- | :--- | :--- | :--- |
-| **Định danh & Trạng thái** | **On-chain** | `asset_id`, `docType`, `owner`, `status` | Cần thiết cho logic xác thực giao dịch (Validation Logic) của Chaincode. |
-| **Quyền truy cập** | **On-chain** | `viewers` (Array) | Kiểm soát ai được phép Query dữ liệu (World State Read). |
-| **Bằng chứng xác thực** | **On-chain** | `metadata_hash` (SHA-256) | Đảm bảo dữ liệu Off-chain không bị sửa đổi trái phép. |
-| **Lịch sử Giao dịch** | **On-chain** | `tx_id`, `timestamp`, `history` | Truy xuất nguồn gốc (Provenance) và kiểm toán. |
-| **Nội dung Chi tiết** | **Off-chain** | Hình ảnh, Video, Tài liệu PDF | Giảm tải cho Ledger, tiết kiệm tài nguyên mạng. |
+| **Identity & State** | **On-chain** | `asset_id`, `docType`, `owner`, `status` | Required for Chaincode Validation Logic. |
+| **Access Control** | **On-chain** | `viewers` (Array) | Controls World State Read access. |
+| **Integrity Proof** | **On-chain** | `metadata_hash` (SHA-256) | Ensures Off-chain data is not tampered with. |
+| **Tx History** | **On-chain** | `tx_id`, `timestamp`, `history` | Provenance and Audit. |
+| **Details** | **Off-chain** | Images, Videos, PDFs | Reduces Ledger load. |
 
-### 7. Tại sao cần `metadata_hash` và Cách tạo?
+### 7. Why `metadata_hash`?
 
-**Q: Tại sao cần lưu Hash trên On-chain khi đã có URL?**
-**A:** Để đảm bảo tính toàn vẹn (Data Integrity).
-*   **Vấn đề:** Dữ liệu tại `metadata_url` (nằm Off-chain) có thể bị hacker hoặc admin hệ thống âm thầm sửa đổi.
-*   **Giải pháp:** `metadata_hash` đóng vai trò như "dấu vân tay" kỹ thuật số bất biến trên Blockchain.
+**Q: Why store Hash On-chain when we have the URL?**
+**A:** Data Integrity.
+*   **Problem:** Data at `metadata_url` (Off-chain) can be silently modified.
+*   **Solution:** `metadata_hash` acts as an immutable digital fingerprint on Blockchain.
 
-### 8. Lộ trình Phát triển (Development Roadmap)
+### 8. Development Roadmap
 
-Hệ thống đã hoàn thiện các module cốt lõi (MVP Completed):
+Core modules are completed (MVP Completed):
 
-#### **Giai đoạn 1: Backend API Gateway (Golang) ✅ Completed**
-*   **Mục tiêu**: Cung cấp RESTful API bảo mật.
-*   **Chức năng**:
-    *   `GET /api/assets?user_id=...`: Lọc tài sản theo quyền hạn (Admin/Owner/Viewer).
-    *   `POST /api/assets/:id/access`: Cấp quyền xem (Grant Access).
-    *   `GET /api/assets/:id/history`: Truy xuất lịch sử.
-    *   *Documentation*: Xem chi tiết tại [backend/README.md](backend/README.md).
+#### **Phase 1: Backend API Gateway (Golang) ✅ Completed**
+*   **Goal**: Secure RESTful API.
+*   **Functions**: `GET /api/assets`, `POST /api/assets/:id/access`, `GET /api/assets/:id/history`.
 
-#### **Giai đoạn 2: Frontend Web App ✅ Completed**
-*   **Mục tiêu**: Giao diện người dùng trực quan.
-*   **Chức năng**:
-    *   **Login Flow**: Đăng nhập với UserID (Simulation).
-    *   **Dashboard**: Hiển thị tài sản với chỉ báo quyền sở hữu `(You)`.
-    *   **Transfer**: Chuyển nhượng tài sản (chỉ Owner).
-    *   **Sharing**: Chia sẻ quyền xem cho user khác.
-    *   **History**: Timeline trực quan về lịch sử tài sản.
-    *   *Documentation*: Xem chi tiết tại [frontend/README.md](frontend/README.md).
+#### **Phase 2: Frontend Web App ✅ Completed**
+*   **Goal**: Intuitive UI.
+*   **Functions**: Login Flow, Dashboard, Transfer, Sharing, History.
 
-#### **Giai đoạn 3: Nâng cấp Kiến trúc Hybrid ✅ Completed**
-*   **Mục tiêu**: Giải quyết bài toán hiệu năng truy vấn (Query Performance) và khả năng tìm kiếm nâng cao (Explorer).
-*   **Kiến trúc Đã triển khai**:
-    1.  **On-chain (CouchDB)**:
-        *   Fabric Peers hiện sử dụng **CouchDB** thay vì LevelDB.
-        *   Hỗ trợ **Rich Queries** (JSON Selector) trong Chaincode.
-    2.  **Off-chain (PostgreSQL)**:
-        *   Database: `postgres:15-alpine` chạy trên cổng 5432.
-        *   Schema: Định nghĩa tại `database/schema.sql` (Assets, Users, History).
-    3.  **Sync Service (Block Listener)**:
-        *   Một dịch vụ chạy ngầm trong Backend (`backend/sync/listener.go`).
-        *   Lắng nghe sự kiện Chaincode (`AssetCreated`, `UserCreated`, `AssetTransferred`...).
-        *   Tự động đồng bộ dữ liệu từ Ledger sang SQL trong thời gian thực (< 3s).
-    4.  **Luồng dữ liệu (Data & Sync Flow)**:
-        *   **Write**: API -> Blockchain (On-Chain). Nếu thành công -> Emit Event.
-        *   **Sync**: Event -> Block Listener -> PostgreSQL (Off-Chain).
-        *   **Read**: API -> PostgreSQL (Off-Chain). Giúp giảm tải cho Ledger và tăng tốc độ phản hồi.
-    5.  **Lợi ích**:
-        *   Giảm tải cho Blockchain Gateway (không cần Query trưc tiếp cho các tác vụ đọc nặng).
-        *   Đảm bảo tính nhất quán (Strong Consistency): DB chỉ cập nhật khi và chỉ khi Tx trên Blockchan thành công.
+#### **Phase 3: Hybrid Architecture ✅ Completed**
+*   **Goal**: Query Performance & Advanced Search.
+*   **Implementation**: CouchDB (On-chain), PostgreSQL (Off-chain), Sync Service (Block Listener), Read-Write Split.
 
-#### **Giai đoạn 4: Real Identity & Wallet Integration (WaaS) ✅ Completed**
-*   **Mục tiêu**: Tích hợp danh tính thực (X.509 Identity) và triển khai Wallet-as-a-Service (WaaS).
-*   **Thực hiện**:
-    *   **Wallet-as-a-Service (WaaS)**: Backend trực tiếp giao tiếp với **Fabric CA** thông qua `fabric-ca-client` binary được nhúng sẵn trong container.
-    *   **Automated Registration**: API `POST /api/wallet/register` cho phép người dùng đăng ký tài khoản tự động. Quy trình bao gồm:
-        1.  Đăng ký (Register) người dùng mới với CA.
-        2.  Cấp phát (Enroll) chứng chỉ X.509 và lưu vào Wallet (File System).
-        3.  Tạo danh tính trên Ledger (On-Chain) ngay lập tức.
-    *   **Dynamic Identity**: Mỗi API Request sẽ khởi tạo Gateway Connection riêng biệt dưới danh tính của người gọi (Acting As).
-    *   **Non-repudiation**: Mọi giao dịch đều được ký bởi Private Key của chính chủ sở hữu.
+#### **Phase 4: Real Identity & Wallet Integration (WaaS) ✅ Completed**
+*   **Goal**: X.509 Identity & WaaS.
+*   **Implementation**: Fabric CA integration, Automated Registration, Dynamic Identity per Request.
 
-#### **Giai đoạn 5: Hệ thống Xác thực Bảo mật (Authentication System) ✅ Completed**
-*   **Mục tiêu**: Bảo mật API và quản lý phiên đăng nhập người dùng.
-*   **Tính năng Đã triển khai**:
-    1.  **Password Security**:
-        *   Sử dụng thư viện `bcrypt` để mã hóa mật khẩu một chiều trước khi lưu vào PostgreSQL.
-        *   Đảm bảo mật khẩu gốc không bao giờ được lưu trữ dưới dạng plain-text.
-    2.  **JWT Authentication**:
-        *   Triển khai tiêu chuẩn **JSON Web Token (JWT)** cho quản lý phiên.
-        *   Token chứa thông tin `verify user_id` và `role`, được ký bằng Secret Key.
-    3.  **Secure Endpoints**:
-        *   Middleware bảo vệ các API quan trọng (`/protected/...`).
-        *   Yêu cầu `Authorization: Bearer <token>` trong Header của mọi request nhạy cảm.
-    4.  **Login API**:
-        *   `POST /api/auth/login`: Xác thực thông tin đăng nhập, trả về JWT Token.
+#### **Phase 5: Authentication System ✅ Completed**
+*   **Goal**: Security & Session Management.
+*   **Implementation**: Bcrypt Hashing, JWT Authentication, Secure Endpoints (`/protected`), secure Login API.
 
-#### **Giai đoạn 6: On-Chain Multi-Sig Architecture ✅ Completed**
-*   **Mục tiêu**: Chuyển toàn bộ logic đa chữ ký (Multi-Sig) lên Chaincode để đảm bảo tính bất biến và bảo mật tuyệt đối.
-*   **Cải tiến**:
-    *   **Logic On-Chain**: Thay vì quản lý trạng thái pending trong SQL, toàn bộ quy trình `Initiate`, `Approve`, `Reject` được xử lý trực tiếp trên Ledger.
-    *   **Atomic Execution**: Giao dịch chỉ được thực thi khi đủ chữ ký xác thực ngay trong Chaincode, loại bỏ Race Condition.
-    *   **Event-Driven**: Backend đóng vai trò Relay, UI được cập nhật thông qua Event Listener từ Blockchain.
-    *   **Security**: Loại bỏ hoàn toàn khả năng thao túng database pending transfer từ phía Backend/Admin.
+#### **Phase 6: On-Chain Multi-Sig Architecture ✅ Completed**
+*   **Goal**: On-chain Multi-Sig Logic.
+*   **Implementation**: On-chain State Management, Atomic Execution, Event-Driven UI.
 
-#### **Giai đoạn 7: Future Works (Planned)**
-*   **Mục tiêu**: Mở rộng quy mô và tính năng.
-*   **Các tính năng dự kiến**:
-    *   **Dashboard Analytics**: Biểu đồ thống kê giao dịch theo thời gian thực.
-    *   **Network Expansion**: Thêm Organization mới vào mạng lưới (Org2, Org3).
-    *   **IPFS Integration**: Lưu trữ metadata assets phi tập trung thực sự thay vì chỉ URL.
+#### **Phase 7: Admin & Security Features ✅ Completed**
+*   **Goal**: Robust Administration & Security.
+*   **Features**:
+    *   **User Locking (On-Chain)**: Admin can lock/unlock users directly on Ledger.
+    *   **Admin Dashboard**: Dedicated monitoring interface.
+    *   **Real-time Sync**: User status synced immediately.
+    *   *Documentation*: See [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md).
+
+#### **Phase 8: Future Works (Planned)**
+*   **Goal**: Scaling & New Features.
+*   **Planned**: Dashboard Analytics, Network Expansion, IPFS Integration.
 
 ---
-## 🛠️ Công cụ hỗ trợ (Helper Scripts)
+## 🛠️ Helper Scripts
 
-*   `scripts/fresh_start.sh`: Tự động hóa toàn bộ quy trình Reset & Re-deploy (Network, App, DB, User Enrollment).
-*   `scripts/create_sample_data.sh`: Tạo dữ liệu mẫu (Assets) cho các user Tomoko, Brad, JinSoo, Max.
+*   `scripts/fresh_start.sh`: Automate Reset & Re-deploy.
+*   `scripts/create_sample_data.sh`: Create sample assets.
 
 ---
 
-## 📚 Tài liệu tham khảo
+## 📚 References
 
-*   [Chi tiết về Network & Debugging](network/README.md)
-*   [Lý thuyết CCAAS & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md) 
-
+*   [Network & Debugging Details](network/README.md)
+*   [CCAAS Theory & Troubleshooting](network/docs/CCAAS_THEORY_AND_PRACTICE.md) 
