@@ -67,17 +67,41 @@ list_asset() {
     echo ""
 }
 
+# Helper function to mint credits (Admin only)
+mint_credits() {
+    local admin_token=$1
+    local user_id=$2
+    local amount=$3
+
+    echo "💰 Minting $amount Credits for $user_id..."
+    curl -s -X POST "$API_URL/protected/marketplace/mint" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $admin_token" \
+        -d "{
+            \"target_user_id\": \"$user_id\",
+            \"amount\": $amount
+        }" | jq .
+    echo ""
+}
+
 # --- Login Users ---
 echo "🔑 Logging in users..."
+TOKEN_ADMIN=$(get_token "admin" "admin123")
 TOKEN_TOMOKO=$(get_token "Tomoko" "tomoko123")
 TOKEN_BRAD=$(get_token "Brad" "brad123")
 TOKEN_JINSOO=$(get_token "JinSoo" "jinsoo123")
 TOKEN_MAX=$(get_token "Max" "max123")
 
-if [ "$TOKEN_TOMOKO" == "null" ]; then echo "❌ Failed to login Tomoko"; exit 1; fi
+if [ "$TOKEN_TOMOKO" == "null" ] || [ "$TOKEN_ADMIN" == "null" ]; then echo "❌ Failed to login users"; exit 1; fi
 echo "✅ Logged in successfully"
 echo ""
 
+echo "--- Minting Initial Credits ---"
+mint_credits "$TOKEN_ADMIN" "Tomoko" 5000000
+mint_credits "$TOKEN_ADMIN" "Brad" 5000000
+mint_credits "$TOKEN_ADMIN" "JinSoo" 5000000
+mint_credits "$TOKEN_ADMIN" "Max" 5000000
+mint_credits "$TOKEN_ADMIN" "demo_user" 1000000
 
 echo "--- Creating & Listing Assets ---"
 
@@ -111,5 +135,5 @@ create_asset "$TOKEN_MAX" "asset401" "Quantum Computer Prototype" "Technology" "
 
 
 echo "========================================================="
-echo "✅ Sample Data Created & Listed Successfully"
+echo "✅ Sample Data Created, Credits Minted & Assets Listed Successfully"
 echo "========================================================="

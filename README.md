@@ -15,7 +15,19 @@ This project implements a private blockchain network using **Hyperledger Fabric 
 *   **Wallet-as-a-Service**: Register new users directly via API, automatically creating blockchain wallets.
 *   **Admin & Security**: User locking capability, Admin Dashboard, and RBAC implementation.
 
-## 📂 Project Structure
+## �️ Technology Stack & Versions
+
+| Component | Technology | Version |
+| :--- | :--- | :--- |
+| **Blockchain Core** | Hyperledger Fabric | v2.5.9 |
+| **Smart Contract** | Go (Chaincode) | v1.24.0 |
+| **Backend API** | Go Fiber | v2.52.10 |
+| **Frontend UI** | React (Vite) | v19.2.0 / v7.2.4 |
+| **Styling** | Tailwind CSS | v3.4.17 |
+| **Database** | PostgreSQL | v15-alpine |
+| **Storage** | IPFS (Kubo) | Latest |
+
+## �📂 Project Structure
 
 ```
 ams/
