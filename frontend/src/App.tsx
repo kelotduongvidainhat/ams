@@ -1,14 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
 import PublicExplorer from './pages/PublicExplorer';
 import type { User } from './types';
+import { fetchCurrentUser, setAuthToken } from './services/api';
 
 import { WebSocketProvider } from './context/WebSocketContext';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isExplorer, setIsExplorer] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem('ams_token');
+      if (token) {
+        try {
+          // Token is already set in api.ts on load, but we verify it by fetching user
+          const user = await fetchCurrentUser();
+          setCurrentUser(user);
+        } catch (error) {
+          console.error('Failed to restore session:', error);
+          setAuthToken(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    restoreSession();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <WebSocketProvider>
@@ -24,7 +53,13 @@ function App() {
         <div className="relative z-10">
           <main>
             {currentUser ? (
-              <Dashboard currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
+              <Dashboard
+                currentUser={currentUser}
+                onLogout={() => {
+                  setAuthToken(null);
+                  setCurrentUser(null);
+                }}
+              />
             ) : isExplorer ? (
               <PublicExplorer onBack={() => setIsExplorer(false)} />
             ) : (

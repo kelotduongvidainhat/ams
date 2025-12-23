@@ -423,6 +423,16 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		return c.Next()
 	})
 
+	// Get Current User (Session Restore)
+	protected.Get("/auth/me", func(c *fiber.Ctx) error {
+		claims := c.Locals("user").(*auth.Claims)
+		// We return a structure compatible with the login response "user" field
+		return c.JSON(fiber.Map{
+			"id": claims.UserID,
+			"role": claims.Role,
+		})
+	})
+
 	// --- ADMIN SERVICE ---
 	admin.RegisterRoutes(protected, pgDB, fabService)
 

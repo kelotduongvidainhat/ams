@@ -138,6 +138,18 @@ export const getAssetHistory = async (id: string): Promise<AssetHistory[]> => {
 };
 
 // Multi-Signature Transfer Functions
+export const fetchCurrentUser = async (): Promise<User> => {
+    const response = await api.get<{ id: string; role: string }>('/protected/auth/me');
+    // Map response to User type (fallback for missing fields)
+    return {
+        id: response.data.id,
+        role: response.data.role,
+        full_name: response.data.id,
+        identity_number: 'N/A',
+        status: 'Active'
+    };
+};
+
 export const initiateTransfer = async (assetId: string, newOwner: string) => {
     const response = await api.post('/protected/transfers/initiate', {
         asset_id: assetId,
