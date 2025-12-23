@@ -24,17 +24,19 @@ for user_id in "${users[@]}"; do
         full_name=$(echo "$user_data" | jq -r '.full_name')
         identity_number=$(echo "$user_data" | jq -r '.identity_number')
         role=$(echo "$user_data" | jq -r '.role')
+        balance=$(echo "$user_data" | jq -r '.balance // 0')
         
-        echo "  ✓ Found: $full_name ($role)"
+        echo "  ✓ Found: $full_name ($role) - Balance: $balance"
         
         # Insert into PostgreSQL
         docker exec -i ams-postgres psql -U ams_user -d ams_db <<EOF
-INSERT INTO users (id, full_name, identity_number, role, updated_at)
-VALUES ('$user_id', '$full_name', '$identity_number', '$role', NOW())
+INSERT INTO users (id, full_name, identity_number, role, balance, updated_at)
+VALUES ('$user_id', '$full_name', '$identity_number', '$role', $balance, NOW())
 ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     identity_number = EXCLUDED.identity_number,
     role = EXCLUDED.role,
+    balance = EXCLUDED.balance,
     updated_at = NOW();
 EOF
         echo "  ✓ Synced to PostgreSQL"

@@ -32,10 +32,11 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 
 -- Indexes for Explorer Performance
-CREATE INDEX idx_assets_owner ON assets(owner);
-CREATE INDEX idx_assets_type ON assets(asset_type);
-CREATE INDEX idx_assets_status ON assets(status);
-CREATE INDEX idx_assets_viewers ON assets USING gin (viewers); -- GIN index for JSONB Array searching
+CREATE INDEX IF NOT EXISTS idx_assets_owner ON assets(owner);
+CREATE INDEX IF NOT EXISTS idx_assets_type ON assets(asset_type);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);
+CREATE INDEX IF NOT EXISTS idx_assets_viewers ON assets USING gin (viewers); -- GIN index for JSONB Array searching
+
 
 -- 3. ASSET_HISTORY Table (Audit Trail)
 -- Stores a permanent record of every state change (Provenance).
@@ -55,9 +56,9 @@ CREATE TABLE IF NOT EXISTS asset_history (
 );
 
 -- Index for History Lookups
-CREATE INDEX idx_history_asset_id ON asset_history(asset_id);
-CREATE INDEX idx_history_tx_id ON asset_history(tx_id);
-CREATE INDEX idx_history_timestamp ON asset_history(timestamp DESC); -- For recent transaction queries
+CREATE INDEX IF NOT EXISTS idx_history_asset_id ON asset_history(asset_id);
+CREATE INDEX IF NOT EXISTS idx_history_tx_id ON asset_history(tx_id);
+CREATE INDEX IF NOT EXISTS idx_history_timestamp ON asset_history(timestamp DESC); -- For recent transaction queries
 
 -- 4. PENDING_TRANSFERS Table (Multi-Signature Transfers)
 -- Stores transfer requests that require approval from both parties
@@ -88,11 +89,11 @@ CREATE TABLE IF NOT EXISTS transfer_signatures (
 );
 
 -- Indexes for Multi-Sig Queries
-CREATE INDEX idx_pending_transfers_current_owner ON pending_transfers(current_owner);
-CREATE INDEX idx_pending_transfers_new_owner ON pending_transfers(new_owner);
-CREATE INDEX idx_pending_transfers_status ON pending_transfers(status);
-CREATE INDEX idx_pending_transfers_expires_at ON pending_transfers(expires_at);
-CREATE INDEX idx_transfer_signatures_pending_id ON transfer_signatures(pending_transfer_id);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_current_owner ON pending_transfers(current_owner);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_new_owner ON pending_transfers(new_owner);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_status ON pending_transfers(status);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_expires_at ON pending_transfers(expires_at);
+CREATE INDEX IF NOT EXISTS idx_transfer_signatures_pending_id ON transfer_signatures(pending_transfer_id);
 
 -- ================= MARKETPLACE MIGRATION =================
 -- Run these if tables already exist

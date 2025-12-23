@@ -7,6 +7,11 @@ echo "========================================================="
 echo "        🚀 AMS System: Fresh Start Protocol"
 echo "========================================================="
 
+# Check Dependencies
+command -v jq >/dev/null 2>&1 || { echo >&2 "❌ Error: 'jq' is not installed. Please install it (sudo apt install jq)."; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo >&2 "❌ Error: 'docker' is not installed."; exit 1; }
+
+
 # 1. Teardown Application
 echo "📉 [Step 1/12] Tearing down Application Services..."
 docker-compose -f docker-compose-app.yaml down --remove-orphans || true
@@ -61,12 +66,8 @@ echo "💾 Initializing Database Schema..."
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql || echo "⚠️  Database might already be initialized or failed."
 
 
-# 9. Populate Extended Sample Data
-echo "📦 [Step 9/12] Populating Extended Sample Data..."
-./scripts/create_sample_data.sh
-
 # 10. Create Test Authenticated User
-echo "🔐 [Step 10/12] Creating Test User with Password..."
+echo "🔐 [Step 9/12] Creating Test User with Password..."
 sleep 3 # Wait for backend to be fully ready
 curl -s -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
@@ -74,12 +75,16 @@ curl -s -X POST http://localhost:3000/api/users \
   > /dev/null && echo "✅ Test user 'demo_user' created (password: demo123)" || echo "⚠️  User creation skipped (might already exist)"
 
 # 11. Sync Blockchain Users to PostgreSQL
-echo "🔄 [Step 11/12] Syncing blockchain users to PostgreSQL..."
+echo "🔄 [Step 10/12] Syncing blockchain users to PostgreSQL..."
 ./scripts/sync_users.sh
 
 # 12. Add Passwords to All Existing Users
-echo "🔐 [Step 12/12] Adding passwords to all blockchain users..."
+echo "🔐 [Step 11/12] Adding passwords to all blockchain users..."
 ./scripts/add_passwords.sh
+
+# 13. Populate Extended Sample Data (Authenticated)
+echo "📦 [Step 12/12] Populating Extended Sample Data (Authenticated)..."
+./scripts/create_sample_data.sh
 
 echo "========================================================="
 echo "✅  SYSTEM READY"
