@@ -570,7 +570,10 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		}
 
 		balance := 0.0
-		if bal, ok := user["Balance"].(float64); ok {
+		// Check lowercase 'balance' (json tag)
+		if bal, ok := user["balance"].(float64); ok {
+			balance = bal
+		} else if bal, ok := user["Balance"].(float64); ok {
 			balance = bal
 		}
 

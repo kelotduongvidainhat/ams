@@ -103,7 +103,7 @@ create_asset "$TOKEN_JINSOO" "asset301" "Mona Lisa Replica" "Art" "JinSoo" "Priv
 create_asset "$TOKEN_JINSOO" "asset302" "Ancient Vase" "Art" "JinSoo" "Active" "https://example.com/meta/vase.json"
 
 # List one for sale
-list_asset "$TOKEN_JINSOO" "asset302" 4500 "USD"
+list_asset "$TOKEN_JINSOO" "asset302" 1200 "USD"
 
 
 # 4. Tech Assets (Max)
