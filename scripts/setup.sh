@@ -70,7 +70,7 @@ fi
 echo -e "\n${YELLOW}--- Setting Permissions ---${NC}"
 chmod +x scripts/*.sh
 chmod +x network/*.sh
-chmod +x network/scripts/*.sh
+
 echo -e "${GREEN}✓ Permissions set${NC}"
 
 echo -e "\n${GREEN}=== Setup Complete! ===${NC}"
