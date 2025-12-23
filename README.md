@@ -9,6 +9,9 @@ This project implements a private blockchain network using **Hyperledger Fabric 
 *   **Automation**: Smart scripts automate the entire process from initializing the network, creating the channel, to deploying the chaincode.
 *   **Asset Management**: Integrated chaincode for commercial asset management (ID, Name, Type, Owner, Status, Metadata).
 *   **Multi-Signature Transfers**: Asset transfers require confirmation from both parties (sender + recipient) within 24 hours.
+*   **NFT Marketplace** 🆕: Buy and sell assets using on-chain credits with atomic transactions.
+*   **Real-time Updates**: WebSocket integration for instant blockchain event notifications.
+*   **IPFS Integration**: Decentralized metadata storage for asset information.
 *   **Wallet-as-a-Service**: Register new users directly via API, automatically creating blockchain wallets.
 *   **Admin & Security**: User locking capability, Admin Dashboard, and RBAC implementation.
 
@@ -614,20 +617,34 @@ Core modules are completed (MVP Completed):
     *   **Real-time Sync**: User status synced immediately.
     *   *Documentation*: See [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md).
 
-#### **Phase 8: Future Works (Planned)**
+#### **Phase 8: NFT Marketplace ✅ Completed** 🆕
+*   **Goal**: Enable asset trading with on-chain economy.
+*   **Features**:
+    *   **On-Chain Credits**: User balance system for transactions.
+    *   **List for Sale**: Asset owners can set prices and list assets.
+    *   **Buy Assets**: Atomic purchase with balance transfer.
+    *   **Marketplace UI**: Dedicated tab with search, filters, and balance display.
+    *   **Real-time Updates**: WebSocket notifications for marketplace events.
+    *   **Performance**: 7 transactions/second, tested with 5 concurrent users.
+    *   *Documentation*: See [docs/MARKETPLACE_IMPLEMENTATION.md](docs/MARKETPLACE_IMPLEMENTATION.md).
+
+#### **Phase 9: Future Works (Planned)**
 *   **Goal**: Scaling & New Features.
 *   **Planned Features**:
     *   **Dashboard Analytics**: Advanced data visualization.
     *   **Network Expansion**: Multi-organization setup.
-    *   **IPFS Integration**: ✅ Completed (Decentralized storage for asset metadata).
+    *   **Multi-Currency Support**: ETH, BTC, custom tokens.
+    *   **Auction System**: Bidding mechanism for assets.
     *   **Composite Key Status**: Refactor user locking to use composite keys (`status~userID`) for better concurrency at scale.
 
 ---
 
 ## 🛠️ Helper Scripts
 
-*   `scripts/fresh_start.sh`: Automate Reset & Re-deploy.
+*   `scripts/fresh_start.sh`: Automate Reset & Re-deploy (includes marketplace setup).
 *   `scripts/create_sample_data.sh`: Create sample assets.
+*   `scripts/test_marketplace.sh`: Test marketplace functionality.
+*   `scripts/stress_test_marketplace.sh`: Load testing for marketplace.
 
 ---
 
@@ -638,7 +655,8 @@ For more specific details, please refer to the documents in the `docs/` folder:
 *   **[System Architecture](docs/ARCHITECTURE.md)**: Technical details on Network, Backend, Frontend, and Database.
 *   **[Operations Guide](docs/OPERATIONS.md)**: Admin guide, scripts, and user account management.
 *   **[Features & Workflows](docs/FEATURES.md)**: Transaction flows, wallet services, and multi-sig logic.
+*   **[NFT Marketplace](docs/MARKETPLACE_IMPLEMENTATION.md)**: Complete marketplace implementation guide.
+*   **[Marketplace Testing](docs/MARKETPLACE_TEST_REPORT.md)**: Functional test results.
+*   **[Stress Testing](docs/STRESS_TEST_REPORT.md)**: Performance and scalability analysis.
 
 For finding old document versions, check `docs/archive/`.
-
- 
