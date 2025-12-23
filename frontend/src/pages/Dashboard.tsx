@@ -13,7 +13,9 @@ import { Loader2, AlertCircle, LayoutGrid, Globe } from 'lucide-react';
 
 import PortfolioView from '../components/dashboard/PortfolioView';
 import ExplorerView from '../components/dashboard/ExplorerView';
+import MarketplaceView from '../components/dashboard/MarketplaceView';
 import AdminLayout from '../components/admin/AdminLayout'; // Fixed Import
+import ListAssetModal from '../components/ListAssetModal';
 
 interface DashboardProps {
     currentUser: User;
@@ -24,7 +26,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'admin'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'marketplace' | 'admin'>('portfolio');
+    const [userBalance, setUserBalance] = useState(0);
     const [pendingCount, setPendingCount] = useState(0);
     const { lastMessage } = useWebSocket();
 
@@ -34,6 +37,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [selectedAssetForHistory, setSelectedAssetForHistory] = useState<Asset | null>(null);
     const [selectedAssetForShare, setSelectedAssetForShare] = useState<Asset | null>(null);
     const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<Asset | null>(null);
+    const [selectedAssetForListing, setSelectedAssetForListing] = useState<Asset | null>(null);
     const [showPendingTransfers, setShowPendingTransfers] = useState(false);
 
     // Initial Tab Selection based on Role
@@ -48,6 +52,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     useEffect(() => {
         fetchData();
         fetchPendingCount();
+        fetchBalance();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
@@ -100,7 +105,11 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
         }
     };
 
-
+    const fetchBalance = async () => {
+        // TODO: Add API endpoint to fetch user balance
+        // For now, set a mock balance for testing
+        setUserBalance(1000);
+    };
 
     // Filter Assets
     const myAssets = assets.filter(a => a.owner === currentUser.id);
@@ -144,6 +153,19 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                             <Globe size={18} /> Public Explorer
                             <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{publicAssets.length}</span>
                         </button>
+                        <button
+                            onClick={() => setActiveTab('marketplace')}
+                            className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'marketplace'
+                                ? 'border-purple-500 text-purple-400'
+                                : 'border-transparent text-slate-400 hover:text-white'
+                                }`}
+                        >
+                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            Marketplace
+                            <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs font-semibold">{userBalance.toFixed(0)} USD</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -182,6 +204,18 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                             <ExplorerView
                                 currentUser={currentUser}
                                 onHistory={(a) => setSelectedAssetForHistory(a)}
+                            />
+                        )}
+
+                        {/* MARKETPLACE TAB */}
+                        {activeTab === 'marketplace' && (
+                            <MarketplaceView
+                                currentUserId={currentUser.id}
+                                userBalance={userBalance}
+                                onPurchaseSuccess={() => {
+                                    fetchData();
+                                    fetchBalance();
+                                }}
                             />
                         )}
                     </>
@@ -229,6 +263,17 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                         onClose={() => setSelectedAssetForEdit(null)}
                         onSuccess={() => {
                             setSelectedAssetForEdit(null);
+                            fetchData();
+                        }}
+                    />
+                )}
+
+                {selectedAssetForListing && (
+                    <ListAssetModal
+                        asset={selectedAssetForListing}
+                        onClose={() => setSelectedAssetForListing(null)}
+                        onSuccess={() => {
+                            setSelectedAssetForListing(null);
                             fetchData();
                         }}
                     />
