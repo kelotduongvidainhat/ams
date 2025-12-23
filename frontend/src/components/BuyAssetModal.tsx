@@ -20,7 +20,12 @@ export default function BuyAssetModal({ asset, userBalance = 0, onClose, onSucce
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const assetId = asset.ID || asset.id || '';
+    // Handle inconsistent casing between blockchain (ID) and explorer (id)
+    const assetId = (asset as any).ID || (asset as any).id || '';
+
+    if (!assetId) {
+        console.error('CRITICAL: Asset object provided to BuyAssetModal is missing an ID:', asset);
+    }
     const price = asset.price || 0;
     const currency = asset.currency || 'USD';
 

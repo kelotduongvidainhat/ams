@@ -26,13 +26,13 @@ export default function MarketplaceView({ currentUserId, userBalance, onPurchase
             const data = await searchAssets(searchTerm, '', typeFilter);
             // Map Asset to PublicAsset
             const publicAssets: PublicAsset[] = data.map(asset => ({
-                id: asset.ID,
+                id: (asset as any).id || asset.ID,
                 name: asset.name,
-                type: asset.type,
+                type: (asset as any).type || asset.type,
                 owner: asset.owner,
                 status: asset.status,
                 metadata_url: asset.metadata_url,
-                last_tx_id: asset.metadata_hash,
+                last_tx_id: (asset as any).last_tx_id || asset.metadata_hash,
                 price: asset.price,
                 currency: asset.currency,
             }));

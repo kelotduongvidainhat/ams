@@ -69,6 +69,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                 case 'GRANT_ACCESS':
                 case 'REVOKE_ACCESS':
                     fetchData(); // Refresh asset lists
+                    fetchBalance(); // Balance might have changed (purchase/mint)
                     break;
                 case 'LISTED':
                 case 'DELISTED':

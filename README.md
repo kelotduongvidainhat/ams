@@ -644,7 +644,7 @@ Core modules are completed (MVP Completed):
 *   `scripts/fresh_start.sh`: Automate Reset & Re-deploy (includes marketplace setup).
 *   `scripts/create_sample_data.sh`: Create sample assets.
 *   `scripts/test_marketplace.sh`: Test marketplace functionality.
-*   `scripts/stress_test_marketplace.sh`: Load testing for marketplace.
+
 
 ---
 

@@ -57,7 +57,7 @@ Planned features for future releases (Phase 8).
 - [ ] **Dashboard Analytics**: Advanced graphs and stats.
 - [ ] **Network Expansion**: Multi-organization setup (e.g., Org1, Org2).
 - [x] **IPFS Integration**: Decentralized storage for metadata files instead of HTTP URLs.
-- [ ] **Composite Key Refactor**: Optimize status checks using `status~userID` keys.
+- [ ] **Composite Key Refactor**: Optimize status checks using `status~userID` and `balance~userID`, `status~assetID`, `balance~assetID` keys.
 - [x] **WebSocket Integration**: Real-time frontend updates (replace 30s polling).
 - [ ] **Nginx Load Balancer**: Unified entry point for SSL termination and static file serving.
 - [ ] **Redis Caching**: Cache expensive queries (for High-Traffic Public Explorer).
@@ -97,25 +97,5 @@ Transform the asset management system into a trading platform.
 
 **Status: NFT Marketplace FULLY IMPLEMENTED** 🎉
 
-## 🟠 Performance Optimization (High Priority)
-Critical optimizations for marketplace scalability and performance.
 
-- [ ] **Composite Key Implementation**:
-    - [ ] **User Status Index**: Implement `status~userID` composite keys for efficient user status queries
-    - [ ] **Asset Status Index**: Implement `status~assetID` composite keys for marketplace listings
-    - [ ] **Balance Index**: Implement `balance~userID` composite keys for quick balance lookups
-    - [ ] **Benefits**:
-        - ⚡ Faster marketplace queries (O(1) vs O(n))
-        - 🔒 Better concurrency control for balance updates
-        - 📊 Efficient filtering of "For Sale" assets
-        - 🚀 Reduced blockchain state scan operations
-    - [ ] **Implementation Priority**: HIGH - Critical for marketplace with 100+ assets/users
-    - [ ] **Estimated Impact**: 10-100x performance improvement for status/balance queries
-
-**Why Composite Keys Matter for Marketplace:**
-- Current: Full state scan to find all "For Sale" assets
-- With Composite Keys: Direct range query on `status~ForSale` prefix
-- Current: Read entire user object to get balance
-- With Composite Keys: Direct lookup of `balance~userID`
-- Enables efficient pagination and filtering at scale
 
