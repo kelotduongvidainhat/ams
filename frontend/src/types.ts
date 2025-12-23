@@ -6,6 +6,8 @@ export interface Asset {
     status: string;
     metadata_url: string;
     metadata_hash?: string;
+    price?: number;
+    currency?: string;
 }
 
 export interface User {
@@ -15,6 +17,7 @@ export interface User {
     role: string;
     wallet_address?: string;
     status: string; // "Active" | "Locked"
+    balance?: number;
 }
 
 export interface AuthResponse {
@@ -60,4 +63,7 @@ export interface PublicAsset {
     status: string;
     metadata_url: string;
     last_tx_id?: string;
+    price?: number;
+    currency?: string;
 }
+

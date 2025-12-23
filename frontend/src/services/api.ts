@@ -66,6 +66,34 @@ export const uploadToIPFS = async (file: File) => {
     return response.data;
 };
 
+// --- Marketplace API ---
+
+export const listAssetForSale = async (assetId: string, price: number) => {
+    const response = await api.post('/protected/marketplace/list', {
+        asset_id: assetId,
+        price: price,
+    });
+    return response.data;
+};
+
+export const delistAsset = async (assetId: string) => {
+    const response = await api.post(`/protected/marketplace/delist/${assetId}`);
+    return response.data;
+};
+
+export const buyAsset = async (assetId: string) => {
+    const response = await api.post(`/protected/marketplace/buy/${assetId}`);
+    return response.data;
+};
+
+export const mintCredits = async (targetUserId: string, amount: number) => {
+    const response = await api.post('/protected/marketplace/mint', {
+        target_user_id: targetUserId,
+        amount: amount,
+    });
+    return response.data;
+};
+
 // --- User API ---
 
 export const login = async (username: string, password: string) => {
