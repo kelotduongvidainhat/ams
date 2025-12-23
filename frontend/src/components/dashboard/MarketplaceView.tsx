@@ -23,7 +23,19 @@ export default function MarketplaceView({ currentUserId, userBalance, onPurchase
         setLoading(true);
         try {
             const data = await searchAssets(searchTerm, '', typeFilter);
-            setAssets(data as PublicAsset[]);
+            // Map Asset to PublicAsset
+            const publicAssets: PublicAsset[] = data.map(asset => ({
+                id: asset.ID,
+                name: asset.name,
+                type: asset.type,
+                owner: asset.owner,
+                status: asset.status,
+                metadata_url: asset.metadata_url,
+                last_tx_id: asset.metadata_hash,
+                price: asset.price,
+                currency: asset.currency,
+            }));
+            setAssets(publicAssets);
         } catch (error) {
             console.error('Failed to fetch assets:', error);
         } finally {
