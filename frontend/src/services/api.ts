@@ -94,6 +94,11 @@ export const mintCredits = async (targetUserId: string, amount: number) => {
     return response.data;
 };
 
+export const getUserBalance = async (): Promise<{ user_id: string; balance: number }> => {
+    const response = await api.get('/protected/user/balance');
+    return response.data;
+};
+
 // --- User API ---
 
 export const login = async (username: string, password: string) => {

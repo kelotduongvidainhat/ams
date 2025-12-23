@@ -78,8 +78,14 @@ echo "🔄 [Step 11/12] Syncing blockchain users to PostgreSQL..."
 ./scripts/sync_users.sh
 
 # 12. Add Passwords to All Existing Users
-echo "🔐 [Step 12/12] Adding passwords to all blockchain users..."
+echo "🔐 [Step 12/13] Adding passwords to all blockchain users..."
 ./scripts/add_passwords.sh
+
+# 13. Mint Initial Credits for Marketplace
+echo "💰 [Step 13/13] Minting initial credits for marketplace..."
+sleep 3 # Wait for backend to process previous requests
+chmod +x scripts/mint_credits.sh
+./scripts/mint_credits.sh
 
 echo "========================================================="
 echo "✅  SYSTEM READY"

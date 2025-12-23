@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAssets, getPendingTransfers } from '../services/api';
+import { getAssets, getPendingTransfers, getUserBalance } from '../services/api';
 import type { Asset, User } from '../types';
 import Navbar from '../components/Navbar';
 import { useWebSocket } from '../context/WebSocketContext';
@@ -106,9 +106,13 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     };
 
     const fetchBalance = async () => {
-        // TODO: Add API endpoint to fetch user balance
-        // For now, set a mock balance for testing
-        setUserBalance(1000);
+        try {
+            const data = await getUserBalance();
+            setUserBalance(data.balance);
+        } catch (error) {
+            console.error('Failed to fetch balance:', error);
+            setUserBalance(0);
+        }
     };
 
     // Filter Assets

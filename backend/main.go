@@ -549,6 +549,37 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "Access granted successfully"})
 	})
 
+	// Get User Balance
+	protected.Get("/user/balance", func(c *fiber.Ctx) error {
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		claims := c.Locals("user").(*auth.Claims)
+		
+		// Get user from blockchain
+		result, err := contract.EvaluateTransaction("ReadUser", claims.UserID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch user: " + err.Error()})
+		}
+
+		var user map[string]interface{}
+		if err := json.Unmarshal(result, &user); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse user data"})
+		}
+
+		balance := 0.0
+		if bal, ok := user["Balance"].(float64); ok {
+			balance = bal
+		}
+
+		return c.JSON(fiber.Map{
+			"user_id": claims.UserID,
+			"balance": balance,
+		})
+	})
+
 	// Get Pending Transfers - Query from blockchain
 	protected.Get("/transfers/pending", func(c *fiber.Ctx) error {
 		contract, err := getContract(c)
