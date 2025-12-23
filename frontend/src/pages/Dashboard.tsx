@@ -70,8 +70,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                 case 'REVOKE_ACCESS':
                     fetchData(); // Refresh asset lists
                     break;
-                case 'ASSET_LISTED':
-                case 'ASSET_DELISTED':
+                case 'LISTED':
+                case 'DELISTED':
                     fetchData();
                     setMarketplaceRefreshKey(prev => prev + 1); // Refresh marketplace
                     break;

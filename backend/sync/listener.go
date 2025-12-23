@@ -101,7 +101,16 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 		log.Printf("❌ DB Error (Upsert User): %v", err)
 	} else {
 		log.Printf("✅ Synced User %s to Postgres", user.ID)
-		ws.BroadcastEvent("USER_UPDATE", user)
+		
+		// Broadcast specific event type
+		eventType := "USER_UPDATE"
+		if event.EventName == "CreditsMinted" {
+			eventType = "CREDITS_MINTED"
+		} else if event.EventName == "UserCreated" {
+			eventType = "USER_CREATED"
+		}
+		
+		ws.BroadcastEvent(eventType, user)
 	}
 }
 
