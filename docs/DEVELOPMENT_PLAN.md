@@ -5,6 +5,12 @@ This document outlines the strategic development plan for the Asset Management S
 ## 📅 Phase 1: Polish & Optimization (Immediate)
 *Focus: Technical Debt, UX Refinement, and Stability.*
 
+### 1.0 Privacy & Compliance (✅ Completed)
+- [x] **Hybrid Core Architecture**: Refactor System to store PII Off-Chain (GDPR Compliance).
+- [x] **Data Separation**: Split `User` data into Wallet (Chain) and Profile (Postgres).
+- [x] **Sync Safety**: Prevent sync service from overwriting off-chain data.
+- [x] **Documentation**: Update Privacy Patterns and System Flows.
+
 ### 1.1 UX Enhancements
 - [ ] **Global Balance Display**: Show user credit balance in the global Navbar (currently only in Marketplace tab).
 - [ ] **Toast Notifications**: Replace simple alerts with professional toast notifications (Success/Error).

@@ -104,8 +104,8 @@ Updated to include balance.
 ```sql
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    identity_number VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(255) NOT NULL, -- PII stored OFF-CHAIN only
+    identity_number VARCHAR(255) NOT NULL UNIQUE, -- PII stored OFF-CHAIN only
     role VARCHAR(50) NOT NULL,
     wallet_address TEXT,
     balance DECIMAL(20, 2) DEFAULT 0.0, -- Marketplace Credit Balance
@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS users (
     status VARCHAR(50) DEFAULT 'Active'
 );
 ```
+
+> **Note**: For privacy architectural decisions (Hybrid Core), see [PRIVACY_PATTERNS.md](PRIVACY_PATTERNS.md).
 
 ### `assets` table
 Updated to include price and currency.
@@ -135,12 +137,36 @@ CREATE TABLE IF NOT EXISTS assets (
 
 ...
 
-## Sync Mechanism
-The backend runs a **Block Listener** (`backend/sync/listener.go`) that subscribes to Chaincode events:
+## Data Flow Architecture
+
+The system employs two distinct data flow patterns depending on the data type:
+
+### 1. Asset Flow (Chain-First)
+*Pattern: Eventual Consistency*
+
+Used for high-value assets where the Blockchain is the absolute source of truth.
+
+1.  **Write**: Backend ➔ **Blockchain** (Commit).
+2.  **Sync**: Blockchain emits Event ➔ Listener captures Event ➔ **Database** (Insert/Update).
+3.  **Read**: Frontend ➔ Backend ➔ **Database** (for rich queries) OR **Blockchain** (for history/provenance).
+
+### 2. User Flow (DB-First / Split-Write)
+*Pattern: Hybrid Core (Privacy Preserving)*
+
+Used for User Identity to ensure GDPR compliance (PII never touches the ledger).
+
+1.  **Write**: Backend ➔ **Database** (Store PII: Name, Email) ➔ **Blockchain** (Create Wallet: ID, Role).
+2.  **Sync**: Blockchain emits Event ➔ Listener captures Event ➔ **Database** (Updates *only* Balance/Role).
+3.  **Read**: Frontend ➔ Backend ➔ **Database** (Joins PII + Operational Data).
+
+---
+
+## Block Listener Service
+The `backend/sync/listener.go` service subscribes to Chaincode events to drive the synchronization:
 
 1. `AssetCreated` -> INSERT into `assets`
 2. `AssetUpdated` -> UPDATE `assets`
 3. `AssetTransferred` -> UPDATE `assets` owner
-4. `UserStatusUpdated` -> UPDATE `users` status/balance
+4. `UserStatusUpdated` -> UPDATE `users` status/balance (Partial Update)
 5. `AssetListed` / `AssetDelisted` -> UPDATE `assets` price/status
 6. `CreditsMinted` -> UPDATE `users` balance

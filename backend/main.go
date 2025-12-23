@@ -1026,10 +1026,29 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "CA Registration failed: " + err.Error()})
 		}
 		
+
 		// 1.5 Hash Password for DB
 		hash, _ := auth.HashPassword(p.Password)
 
-		// 2. Register On-Chain (CreateUser in Ledger)
+		// 2. Insert PII directly into PostgreSQL (Off-Chain Storage)
+		// HYBRID CORE: PII stored here, not on blockchain
+		if pgDB != nil {
+			_, err = pgDB.Exec(`
+				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, 'User', 'Active', NOW(), NOW())
+				ON CONFLICT (id) DO UPDATE SET
+					full_name = EXCLUDED.full_name,
+					identity_number = EXCLUDED.identity_number,
+					password_hash = EXCLUDED.password_hash;
+			`, p.Username, p.FullName, p.IdentityNumber, hash)
+			
+			if err != nil {
+				log.Printf("❌ WALLET: Failed to persist PII to DB: %v", err)
+				return c.Status(500).JSON(fiber.Map{"error": "Database error: " + err.Error()})
+			}
+		}
+
+		// 3. Register On-Chain (CreateUser in Ledger - Wallet Only)
 		c.Request().Header.Set("X-User-ID", p.Username) 
 		
 		contract, err := getContract(c)
@@ -1037,25 +1056,15 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to network as new user: " + err.Error()})
 		}
 		
-		log.Printf("🔹 WALLET: Creating User on-chain %s...", p.Username)
+		log.Printf("🔹 WALLET: Creating Wallet on-chain %s (No PII)...", p.Username)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.Username, 
-			p.FullName, 
-			p.IdentityNumber, 
 			"User", 
 		)
 
 		if err != nil {
 			log.Printf("❌ WALLET: On-Chain creation failed: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create user on ledger: " + err.Error()})
-		}
-		
-		// 3. Update Password Hash in DB (since Sync Listener only syncs ID/Role, not password)
-		if pgDB != nil {
-			_, err = pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.Username)
-			if err != nil {
-				log.Printf("⚠️ Failed to update password hash: %v", err)
-			}
 		}
 
 		return c.JSON(fiber.Map{
@@ -1084,23 +1093,31 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
 
-		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
+		log.Printf("Submitting Transaction: CreateUser (Manual), ID: %s", p.ID)
 		
+		// 1. Store PII in DB
+		if pgDB != nil {
+			hash := ""
+			if p.Password != "" {
+				hash, _ = auth.HashPassword(p.Password)
+			}
+			pgDB.Exec(`
+				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, 'Active', NOW(), NOW())
+				ON CONFLICT (id) DO UPDATE SET
+					full_name = EXCLUDED.full_name,
+					identity_number = EXCLUDED.identity_number;
+			`, p.ID, p.FullName, p.IdentityNumber, hash, p.Role)
+		}
+
+		// 2. Submit to Blockchain (No PII)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.ID, 
-			p.FullName, 
-			p.IdentityNumber, 
 			p.Role, 
 		)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to register user: " + err.Error()})
-		}
-		
-		// Optional: Hash Password
-		if p.Password != "" && pgDB != nil {
-			hash, _ := auth.HashPassword(p.Password)
-			pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.ID)
 		}
 
 		return c.JSON(fiber.Map{"message": "User registered successfully", "id": p.ID})

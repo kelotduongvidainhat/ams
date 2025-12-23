@@ -12,6 +12,7 @@ This document details the execution flows for key operations in the Asset Manage
 6.  [View History](#6-view-history)
 7.  [Public Explorer](#7-public-explorer)
 8.  [Search Assets](#8-search-assets-filtered)
+9.  [User Registration (Hybrid Core)](#9-user-registration-hybrid-core)
 
 ---
 
@@ -263,4 +264,37 @@ sequenceDiagram
     DB-->>Backend: Filtered Result Set
     Backend-->>Frontend: JSON [Asset1, Asset2...]
     Frontend->>Frontend: Update Grid View (Filtered)
+```
+
+### 9. User Registration (Hybrid Core)
+
+**Description**: The "Split-Write" architecture where PII is stored off-chain first, and only the Wallet is created on-chain.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant Backend as ⚙️ Backend
+    participant DB as 💾 PostgreSQL (Private)
+    participant Fabric as 🔗 Blockchain (Public Ledger)
+    participant Listener as 👂 Block Listener
+
+    User->>Backend: POST /api/wallet/register (Name, ID, PII)
+    
+    Note over Backend,DB: 1. Store PII Off-Chain
+    Backend->>DB: INSERT INTO users (id, full_name, identity...)
+    DB-->>Backend: Success
+    
+    Note over Backend,Fabric: 2. Create Wallet On-Chain
+    Backend->>Fabric: SubmitTransaction("CreateUser", ID, Role)
+    Fabric->>Fabric: Ledger Write: {id, role, balance}
+    Fabric-->>Backend: Success
+    
+    Backend-->>User: 200 Created
+    
+    Note over Fabric,Listener: 3. Sync Operational Data
+    Fabric->>Listener: Event: UserCreated {id, role, balance, status}
+    
+    Note right of Listener: PARTIAL UPDATE
+    Listener->>DB: UPDATE users SET balance=..., role=... WHERE id=...
+    Note right of Listener: (Ignores/Preserves full_name)
 ```

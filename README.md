@@ -330,7 +330,7 @@ Core modules are completed (MVP Completed):
 
 #### **Phase 5: Authentication System ✅ Completed**
 *   **Goal**: Security & Session Management.
-*   **Implementation**: Bcrypt Hashing, JWT Authentication, Secure Endpoints (`/protected`), secure Login API.
+*   **Implementation**: Bcrypt Hashing, JWT Authentication, Secure Endpoints (`/protected`), secure Login API, **Session Persistence**.
 
 #### **Phase 6: On-Chain Multi-Sig Architecture ✅ Completed**
 *   **Goal**: On-chain Multi-Sig Logic.
@@ -371,6 +371,7 @@ Core modules are completed (MVP Completed):
 *   `scripts/fresh_start.sh`: Automate Reset & Re-deploy (includes marketplace setup).
 *   `scripts/create_sample_data.sh`: Create sample assets.
 *   `scripts/test_marketplace.sh`: Test marketplace functionality.
+*   `scripts/test_auth_me.sh`: Test session authentication endpoint.
 
 
 ---
@@ -385,5 +386,6 @@ For more specific details, please refer to the documents in the `docs/` folder:
 *   **[NFT Marketplace](docs/MARKETPLACE_IMPLEMENTATION.md)**: Complete marketplace implementation guide.
 *   **[Marketplace Testing](docs/MARKETPLACE_TEST_REPORT.md)**: Functional test results.
 *   **[Stress Testing](docs/STRESS_TEST_REPORT.md)**: Performance and scalability analysis.
+*   **[Privacy & Architecture](docs/PRIVACY_PATTERNS.md)**: Analysis of Hybrid Core and Privacy Patterns.
 
 For finding old document versions, check `docs/archive/`.

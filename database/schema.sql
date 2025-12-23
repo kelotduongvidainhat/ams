@@ -102,3 +102,18 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(20, 2) DEFAULT 0.0;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS price DECIMAL(20, 2) DEFAULT 0.0;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
 
+
+-- 6. SEED DATA (Hybrid Core Architecture)
+-- Seed default users with PII since they are now anonymous on-chain
+INSERT INTO users (id, full_name, identity_number, role, status) VALUES 
+('user01', 'User One', 'ID001', 'User', 'Active'),
+('Tomoko', 'Tomoko', 'ID002', 'User', 'Active'),
+('Brad', 'Brad', 'ID003', 'User', 'Active'),
+('JinSoo', 'Jin Soo', 'ID004', 'User', 'Active'),
+('Max', 'Max', 'ID005', 'User', 'Active'),
+('Adriana', 'Adriana', 'ID006', 'User', 'Active'),
+('Michel', 'Michel', 'ID007', 'User', 'Active'),
+('admin', 'System Admin', 'ID000', 'Admin', 'Active'),
+('auditor', 'Auditor One', 'ID999', 'Auditor', 'Active')
+ON CONFLICT (id) DO NOTHING;
+

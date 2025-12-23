@@ -37,14 +37,12 @@ type Asset struct {
 }
 
 // User structure matching chaincode
+// User structure matching chaincode (Hybrid Core: No PII)
 type User struct {
-	ID             string  `json:"id"`
-	FullName       string  `json:"full_name"`
-	IdentityNumber string  `json:"identity_number"`
-	Role           string  `json:"role"`
-	WalletAddress  string  `json:"wallet_address"`
-	Status         string  `json:"status"`
-	Balance        float64 `json:"balance"`
+	ID      string  `json:"id"`
+	Role    string  `json:"role"`
+	Status  string  `json:"status"`
+	Balance float64 `json:"balance"`
 }
 
 // StartEventListening begins the infinite loop of event processing
@@ -81,14 +79,15 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 		return
 	}
 
+	// HYBRID CORE SYNC:
+	// We only sync operational data (Role, Status, Balance).
+	// We DO NOT overwrite PII (FullName, Identity) as it's not in the event.
+	
 	query := `
-		INSERT INTO users (id, full_name, identity_number, role, wallet_address, status, balance, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		INSERT INTO users (id, full_name, role, status, balance, updated_at)
+		VALUES ($1, 'Unknown (Synced)', $2, $3, $4, NOW())
 		ON CONFLICT (id) DO UPDATE SET
-			full_name = EXCLUDED.full_name,
-			identity_number = EXCLUDED.identity_number,
 			role = EXCLUDED.role,
-			wallet_address = EXCLUDED.wallet_address,
 			status = EXCLUDED.status,
 			balance = EXCLUDED.balance,
 			updated_at = NOW();
@@ -96,11 +95,11 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	// Handle missing status field in older events
 	if user.Status == "" { user.Status = "Active" }
 
-	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.WalletAddress, user.Status, user.Balance)
+	_, err := db.Exec(query, user.ID, user.Role, user.Status, user.Balance)
 	if err != nil {
 		log.Printf("❌ DB Error (Upsert User): %v", err)
 	} else {
-		log.Printf("✅ Synced User %s to Postgres", user.ID)
+		log.Printf("✅ Synced User %s to Postgres (Operational Data Only)", user.ID)
 		
 		// Broadcast specific event type
 		eventType := "USER_UPDATE"
@@ -110,6 +109,9 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 			eventType = "USER_CREATED"
 		}
 		
+		// Broadcaster needs full object? Use ID mostly.
+		// For UI updates, we might want to fetch the full object from DB really, 
+		// but sending the event payload is fine for specific Balance updates.
 		ws.BroadcastEvent(eventType, user)
 	}
 }

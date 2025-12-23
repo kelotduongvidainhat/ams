@@ -4,6 +4,8 @@
 
 1. [Overview](#overview)
 2. [Transaction Types](#transaction-types)
+   - [User Registration (Hybrid Core)](#0-user-registration-createuser---hybrid-core)
+   - [Asset Creation](#1-asset-creation-createasset)
 3. [Transaction Lifecycle](#transaction-lifecycle)
 4. [Multi-Signature Transactions](#multi-signature-transactions)
 5. [Transaction Security](#transaction-security)
@@ -39,6 +41,35 @@ The AMS (Asset Management System) uses **Hyperledger Fabric** for blockchain tra
 ---
 
 ## Transaction Types
+
+### 0. User Registration (`CreateUser`) - Hybrid Core
+
+**Purpose**: Register a new user wallet while keeping PII off-chain.
+
+**Chaincode Function**: `CreateUser(id, role)`
+
+**API Endpoint**: `POST /api/wallet/register`
+
+**Request**:
+```json
+{
+  "username": "User123",
+  "full_name": "John Doe",
+  "identity_number": "ID-999",
+  "password": "secret_password"
+}
+```
+
+**Privacy Logic**:
+1.  **DB Write**: `username`, `full_name`, `identity_number` -> **PostgreSQL**.
+2.  **Chain Write**: `username`, `role` -> **Blockchain**.
+
+**Blockchain State Changes**:
+- New `User` asset created (ID, Role, Balance, Status).
+- **No PII** is recorded on the ledger.
+- `UserCreated` event emitted.
+
+---
 
 ### 1. Asset Creation (`CreateAsset`)
 
