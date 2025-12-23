@@ -112,14 +112,15 @@ func main() {
 			log.Printf("🔎 Explorer Query - Search: %s, Owner: %s, Type: %s", search, owner, itemType)
 
 			// Build Query
-			q := "SELECT id, name, asset_type, owner, status, metadata_url, last_tx_id FROM assets WHERE 1=1"
+			q := "SELECT id, name, asset_type, owner, status, metadata_url, price, currency, last_tx_id FROM assets WHERE 1=1"
 			args := []interface{}{}
 			argId := 1
 
 			if search != "" {
-				q += fmt.Sprintf(" AND name ILIKE $%d", argId)
-				args = append(args, "%"+search+"%")
-				argId++
+				// Search by ID (exact match) OR name (partial match)
+				q += fmt.Sprintf(" AND (id = $%d OR name ILIKE $%d)", argId, argId+1)
+				args = append(args, search, "%"+search+"%")
+				argId += 2
 			}
 			if owner != "" {
 				q += fmt.Sprintf(" AND owner = $%d", argId)
@@ -149,14 +150,16 @@ func main() {
 					Owner       string
 					Status      string
 					MetadataURL string
+					Price       float64
+					Currency    string
 					LastTxID    string
 				}
-				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.LastTxID); err != nil {
+				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.Price, &r.Currency, &r.LastTxID); err != nil {
 					continue
 				}
 				results = append(results, map[string]interface{}{
 					"id": r.ID, "name": r.Name, "type": r.Type, "owner": r.Owner, 
-					"status": r.Status, "metadata_url": r.MetadataURL, "last_tx_id": r.LastTxID,
+					"status": r.Status, "metadata_url": r.MetadataURL, "price": r.Price, "currency": r.Currency, "last_tx_id": r.LastTxID,
 				})
 			}
 			
@@ -833,6 +836,123 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		if err != nil { return c.Status(500).JSON(fiber.Map{"error": err.Error()}) }
 		c.Set("Content-Type", "application/json")
 		return c.Send(evaluateResult)
+	})
+
+	// ========== MARKETPLACE ENDPOINTS ==========
+	
+	// Mint Credits (Admin only)
+	protected.Post("/marketplace/mint", func(c *fiber.Ctx) error {
+		claims := c.Locals("user").(*auth.Claims)
+		
+		if claims.Role != "Admin" {
+			return c.Status(403).JSON(fiber.Map{"error": "Only admins can mint credits"})
+		}
+		
+		var req struct {
+			TargetUserID string  `json:"target_user_id"`
+			Amount       float64 `json:"amount"`
+		}
+		
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+		}
+		
+		log.Printf("💰 Admin %s minting %.2f credits for %s", claims.UserID, req.Amount, req.TargetUserID)
+		
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+		
+		_, err = contract.SubmitTransaction("MintCredits", req.TargetUserID, fmt.Sprintf("%.2f", req.Amount))
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to mint credits: " + err.Error()})
+		}
+		
+		return c.JSON(fiber.Map{
+			"message": fmt.Sprintf("Successfully minted %.2f credits for %s", req.Amount, req.TargetUserID),
+			"amount": req.Amount,
+			"target_user": req.TargetUserID,
+		})
+	})
+	
+	// List Asset for Sale
+	protected.Post("/marketplace/list", func(c *fiber.Ctx) error {
+		claims := c.Locals("user").(*auth.Claims)
+		
+		var req struct {
+			AssetID string  `json:"asset_id"`
+			Price   float64 `json:"price"`
+		}
+		
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+		}
+		
+		log.Printf("🏷️  User %s listing asset %s for %.2f", claims.UserID, req.AssetID, req.Price)
+		
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+		
+		_, err = contract.SubmitTransaction("ListAsset", req.AssetID, fmt.Sprintf("%.2f", req.Price))
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to list asset: " + err.Error()})
+		}
+		
+		return c.JSON(fiber.Map{
+			"message": "Asset listed successfully",
+			"asset_id": req.AssetID,
+			"price": req.Price,
+		})
+	})
+	
+	// Delist Asset
+	protected.Post("/marketplace/delist/:id", func(c *fiber.Ctx) error {
+		assetID := c.Params("id")
+		claims := c.Locals("user").(*auth.Claims)
+		
+		log.Printf("🚫 User %s delisting asset %s", claims.UserID, assetID)
+		
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+		
+		_, err = contract.SubmitTransaction("DelistAsset", assetID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to delist asset: " + err.Error()})
+		}
+		
+		return c.JSON(fiber.Map{
+			"message": "Asset delisted successfully",
+			"asset_id": assetID,
+		})
+	})
+	
+	// Buy Asset
+	protected.Post("/marketplace/buy/:id", func(c *fiber.Ctx) error {
+		assetID := c.Params("id")
+		claims := c.Locals("user").(*auth.Claims)
+		
+		log.Printf("💳 User %s attempting to buy asset %s", claims.UserID, assetID)
+		
+		contract, err := getContract(c)
+		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Auth failed: " + err.Error()})
+		}
+		
+		_, err = contract.SubmitTransaction("BuyAsset", assetID, claims.UserID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Purchase failed: " + err.Error()})
+		}
+		
+		return c.JSON(fiber.Map{
+			"message": "Purchase successful",
+			"asset_id": assetID,
+			"buyer": claims.UserID,
+		})
 	})
 
 

@@ -63,18 +63,32 @@ Planned features for future releases (Phase 8).
 - [ ] **Redis Caching**: Cache expensive queries (for High-Traffic Public Explorer).
 - [ ] **Advanced Monitoring**: Prometheus/Grafana stack for network health metrics.
 
-## 🔵 NFT Marketplace Extension (Proposed)
+## 🔵 NFT Marketplace Extension (Backend Complete ✅)
 Transform the asset management system into a trading platform.
 
-- [ ] **Marketplace Smart Contract Enhancements**:
-    - [ ] Add `Price` and `Currency` fields to Asset struct.
-    - [ ] Implement `ListAsset` (Set price & "For Sale" status).
-    - [ ] Implement `DelistAsset` (Remove from market).
-- [ ] **Settlement Mechanisms**:
-    - [ ] Option A: Off-chain Settlement (Status locking & Manual confirmation).
-    - [ ] Option B: On-chain Credits (Internal token/balance system).
-    - [ ] Implement `BuyAsset` (Atomic ownership transfer & payment).
-- [ ] **Marketplace UI**:
+- [x] **Marketplace Smart Contract Enhancements**:
+    - [x] Add `Price` and `Currency` fields to Asset struct.
+    - [x] Add `Balance` field to User struct.
+    - [x] Implement `ListAsset` (Set price & "For Sale" status).
+    - [x] Implement `DelistAsset` (Remove from market).
+- [x] **Settlement Mechanisms**:
+    - [x] Option B: On-chain Credits (Internal balance system) - IMPLEMENTED
+    - [x] Implement `BuyAsset` (Atomic ownership transfer & payment).
+    - [x] Implement `MintCredits` (Admin function for testing).
+- [x] **Backend API**:
+    - [x] POST `/api/protected/marketplace/mint` - Mint credits (Admin only)
+    - [x] POST `/api/protected/marketplace/list` - List asset for sale
+    - [x] POST `/api/protected/marketplace/delist/:id` - Remove from sale
+    - [x] POST `/api/protected/marketplace/buy/:id` - Purchase asset
+    - [x] Enhanced search API with price/currency fields
+- [x] **Database & Sync**:
+    - [x] Add `price`, `currency` columns to assets table
+    - [x] Add `balance` column to users table
+    - [x] Update BlockListener to sync marketplace events
+- [ ] **Marketplace UI** (Frontend - TODO):
     - [ ] "Buy Now" flow for buyers.
     - [ ] "List for Sale" flow for owners.
     - [ ] "For Sale" filters in Public Explorer.
+    - [ ] Display user balance in Navbar.
+    - [ ] Show asset prices in cards.
+
