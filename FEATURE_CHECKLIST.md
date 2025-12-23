@@ -97,5 +97,34 @@ Transform the asset management system into a trading platform.
 
 **Status: NFT Marketplace FULLY IMPLEMENTED** 🎉
 
+## ⚡ Performance Optimization (Composite Keys Details)
+Details regarding the "Composite Key Refactor" option.
+
+**Problem**: Currently, `GetAsset` and `GetUser` read the entire JSON state. `GetAllAssets` uses `GetStateByRange` which can be slow for large datasets.
+
+**Proposed Solution**:
+Use Hyperledger Fabric's `CreateCompositeKey` to index specific fields for faster lookups without reading the full JSON.
+- `status~assetID`: Quickly check if an asset is "For Sale" or "Locked".
+- `balance~userID`: Store balance as a separate key for atomic updates without locking the User struct.
+- `owner~assetID`: Quickly query all assets owned by a user (replaces JSON filtering).
+
+## 🧪 Testing & Quality Assurance
+The system has undergone rigorous testing to ensure stability and correctness.
+
+- [x] **Functional Testing**:
+    - [x] Automated Shell Scripts (`test_marketplace.sh`).
+    - [x] Cover: Minting, Listing, Buying, Transferring.
+- [x] **Stress Testing**:
+    - [x] Verified with 5+ concurrent users.
+    - [x] 7 Transactions/Second throughput.
+    - [x] MVCC Read Conflicts handled correctly.
+
+## ⚠️ Current Limitations & Known Issues
+Items to address in future updates.
+
+1.  **Navbar Balance Display**: The User Balance is currently only shown in the Marketplace Tab, not globally in the Navbar.
+2.  **Single Currency**: System only supports 'USD'.
+3.  **No Fiat On-Ramp**: Credits must be minted by Admin.
+
 
 

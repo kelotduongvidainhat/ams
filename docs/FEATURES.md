@@ -360,6 +360,34 @@ sequenceDiagram
 
 ---
 
+---
+
+### 9. NFT Marketplace Transactions (New)
+
+#### 9.1 List Asset (`ListAsset`)
+**Purpose**: Set an asset for sale with a fixed price in on-chain credits.
+**Chaincode**: `ListAsset(assetID, price)`
+**API**: `POST /api/protected/marketplace/list`
+**Logic**: Sets Status="For Sale", Price=X.
+
+#### 9.2 Buy Asset (`BuyAsset`)
+**Purpose**: Atomic purchase of an asset.
+**Chaincode**: `BuyAsset(assetID, buyerID)`
+**API**: `POST /api/protected/marketplace/buy/:id`
+**Logic**:
+1. Checks if asset is "For Sale".
+2. Checks Buyer Balance >= Price.
+3. Transfers Price from Buyer to Seller.
+4. Transfers Ownership to Buyer.
+5. Emits `AssetTransferred` and `UserStatusUpdated`.
+
+#### 9.3 Mint Credits (`MintCredits`)
+**Purpose**: Admin function to issue credits to users (for testing/fiat ramp).
+**Chaincode**: `MintCredits(userID, amount)`
+**API**: `POST /api/protected/marketplace/mint`
+
+---
+
 ## Transaction Lifecycle
 
 ### 1. Submission Phase

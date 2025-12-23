@@ -165,6 +165,32 @@ Implement a full-featured Admin Dashboard separated from the standard User View.
 ---
 
 
+---
+
+## 💰 Marketplace Operations
+
+### 1. Credit Management (Minting)
+Admins can issue (mint) credits to users. This is primarily for testing or initial funding as there is no fiat payment gateway yet.
+
+**API Endpoint**:
+`POST /api/protected/marketplace/mint`
+
+**Example**:
+```bash
+curl -X POST http://localhost:3000/api/protected/marketplace/mint \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"target_user_id":"Brad", "amount": 1000}'
+```
+
+### 2. Monitoring Transactions
+Admins can view all asset transfers in the system via the Database or Blockchain events.
+
+*   **Database**: Check `asset_history` table for `action_type = 'TRANSFER'`.
+*   **Logs**: Check Backend logs for "BuyAsset" success messages.
+
+---
+
 # 📜 Utility Scripts Guide
 
 This folder contains shell scripts to automate the lifecycle of the AMS network and application.

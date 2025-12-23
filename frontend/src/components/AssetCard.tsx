@@ -31,9 +31,9 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     <div className="p-2.5 bg-slate-800 rounded-lg border border-slate-700 group-hover:border-blue-500/30 transition-colors">
                         <Box className="w-6 h-6 text-blue-400" />
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors">{asset.name}</h3>
-                        <span className="text-xs text-slate-400 font-mono tracking-wide">#{asset.ID}</span>
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors truncate" title={asset.name}>{asset.name}</h3>
+                        <span className="text-xs text-slate-400 font-mono tracking-wide truncate block" title={asset.ID}>#{asset.ID}</span>
                     </div>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass} uppercase tracking-wider`}>
@@ -52,7 +52,7 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     <div className="flex items-center gap-2">
                         <UserIcon size={14} /> <span>Owner</span>
                     </div>
-                    <span className={`text-slate-200 ${isOwner ? 'font-bold text-blue-400' : ''}`}>
+                    <span className={`text-slate-200 truncate max-w-[120px] ${isOwner ? 'font-bold text-blue-400' : ''}`} title={asset.owner}>
                         {asset.owner} {isOwner && '(You)'}
                     </span>
                 </div>

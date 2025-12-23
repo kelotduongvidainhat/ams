@@ -16,11 +16,11 @@ export default function MarketplaceCard({ asset, currentUserId, onBuy }: Marketp
     return (
         <div className="glass-panel rounded-xl p-5 hover:border-blue-500/30 transition-all duration-300 group">
             <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors">
+                <div className="min-w-0 flex-1 mr-2">
+                    <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors truncate" title={asset.name}>
                         {asset.name}
                     </h3>
-                    <span className="text-xs text-slate-400 font-mono">#{asset.id}</span>
+                    <span className="text-xs text-slate-400 font-mono truncate block" title={asset.id}>#{asset.id}</span>
                 </div>
                 {isForSale && (
                     <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 uppercase tracking-wider">
@@ -41,7 +41,7 @@ export default function MarketplaceCard({ asset, currentUserId, onBuy }: Marketp
                     <div className="flex items-center gap-2">
                         <UserIcon size={14} /> <span>Seller</span>
                     </div>
-                    <span className={`text-slate-200 ${isOwner ? 'font-bold text-blue-400' : ''}`}>
+                    <span className={`text-slate-200 truncate max-w-[120px] ${isOwner ? 'font-bold text-blue-400' : ''}`} title={asset.owner}>
                         {asset.owner} {isOwner && '(You)'}
                     </span>
                 </div>
