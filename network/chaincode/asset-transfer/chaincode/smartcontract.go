@@ -34,13 +34,15 @@ type Asset struct {
 }
 
 // User describes the participant in the network
-// HYBRID CORE: PII (FullName, IdentityNumber) moved off-chain
 type User struct {
-	DocType string  `json:"docType"`
-	ID      string  `json:"id"`
-	Role    string  `json:"role"`            // Admin, User, Auditor
-	Status  string  `json:"status"`          // Active, Locked
-	Balance float64 `json:"balance"`         // On-chain Credit Balance
+	DocType        string  `json:"docType"`
+	ID             string  `json:"id"`
+	FullName       string  `json:"full_name"`
+	IdentityNumber string  `json:"identity_number"` // CCCD/Passport
+	WalletAddress  string  `json:"wallet_address"`  // Optional: For future non-custodial features
+	Role           string  `json:"role"`            // Admin, User, Auditor
+	Status         string  `json:"status"`          // Active, Locked
+	Balance        float64 `json:"balance"`         // On-chain Credit Balance
 }
 
 // ... existing code ...
@@ -127,17 +129,17 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
-	// Seed Default Users (HYBRID CORE: PII Removed)
+	// Seed Default Users
 	users := []User{
-		{DocType: "user", ID: "user01", Role: "User", Status: "Active", Balance: 1000},
-		{DocType: "user", ID: "Tomoko", Role: "User", Status: "Active", Balance: 1000},
-		{DocType: "user", ID: "Brad", Role: "User", Status: "Active", Balance: 1500},
-		{DocType: "user", ID: "JinSoo", Role: "User", Status: "Active", Balance: 2000},
-		{DocType: "user", ID: "Max", Role: "User", Status: "Active", Balance: 2500},
-		{DocType: "user", ID: "Adriana", Role: "User", Status: "Active", Balance: 3000},
-		{DocType: "user", ID: "Michel", Role: "User", Status: "Active", Balance: 1000},
-		{DocType: "user", ID: "admin", Role: "Admin", Status: "Active", Balance: 0},
-		{DocType: "user", ID: "auditor", Role: "Auditor", Status: "Active", Balance: 0},
+		{DocType: "user", ID: "user01", FullName: "User One", IdentityNumber: "ID001", Role: "User", Status: "Active", Balance: 1000},
+		{DocType: "user", ID: "Tomoko", FullName: "Tomoko", IdentityNumber: "ID002", Role: "User", Status: "Active", Balance: 1000},
+		{DocType: "user", ID: "Brad", FullName: "Brad", IdentityNumber: "ID003", Role: "User", Status: "Active", Balance: 1500},
+		{DocType: "user", ID: "JinSoo", FullName: "Jin Soo", IdentityNumber: "ID004", Role: "User", Status: "Active", Balance: 2000},
+		{DocType: "user", ID: "Max", FullName: "Max", IdentityNumber: "ID005", Role: "User", Status: "Active", Balance: 2500},
+		{DocType: "user", ID: "Adriana", FullName: "Adriana", IdentityNumber: "ID006", Role: "User", Status: "Active", Balance: 3000},
+		{DocType: "user", ID: "Michel", FullName: "Michel", IdentityNumber: "ID007", Role: "User", Status: "Active", Balance: 1000},
+		{DocType: "user", ID: "admin", FullName: "System Admin", IdentityNumber: "ID000", Role: "Admin", Status: "Active", Balance: 0},
+		{DocType: "user", ID: "auditor", FullName: "Auditor One", IdentityNumber: "ID999", Role: "Auditor", Status: "Active", Balance: 0},
 	}
 
 	for _, user := range users {
@@ -706,8 +708,8 @@ func (s *SmartContract) GetAllAssets(ctx contractapi.TransactionContextInterface
 	return assets, nil
 }
 
-// CreateUser registers a new user in the system (Wallet Creation)
-func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, id string, role string) error {
+// CreateUser registers a new user in the system
+func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, id string, fullName string, identityNumber string, role string) error {
 	// Check if user already exists
 	userJSON, err := ctx.GetStub().GetState(id)
 	if err != nil {
@@ -718,11 +720,14 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 	}
 
 	user := User{
-		DocType: "user", // Fixed docType
-		ID:      id,
-		Role:    role,
-		Status:  "Active",
-		Balance: 0,
+		DocType:        "user",
+		ID:             id,
+		FullName:       fullName,
+		IdentityNumber: identityNumber,
+		Role:           role,
+		WalletAddress:  "", // Empty for now
+		Status:         "Active",
+		Balance:        0,
 	}
 	
 	userBytes, err := json.Marshal(user)

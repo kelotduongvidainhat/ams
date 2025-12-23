@@ -1025,46 +1025,48 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			log.Printf("❌ WALLET: CA Registration failed: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "CA Registration failed: " + err.Error()})
 		}
-		
 
-		// 1.5 Hash Password for DB
-		hash, _ := auth.HashPassword(p.Password)
-
-		// 2. Insert PII directly into PostgreSQL (Off-Chain Storage)
-		// HYBRID CORE: PII stored here, not on blockchain
-		if pgDB != nil {
-			_, err = pgDB.Exec(`
-				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, 'User', 'Active', NOW(), NOW())
-				ON CONFLICT (id) DO UPDATE SET
-					full_name = EXCLUDED.full_name,
-					identity_number = EXCLUDED.identity_number,
-					password_hash = EXCLUDED.password_hash;
-			`, p.Username, p.FullName, p.IdentityNumber, hash)
-			
-			if err != nil {
-				log.Printf("❌ WALLET: Failed to persist PII to DB: %v", err)
-				return c.Status(500).JSON(fiber.Map{"error": "Database error: " + err.Error()})
-			}
-		}
-
-		// 3. Register On-Chain (CreateUser in Ledger - Wallet Only)
-		c.Request().Header.Set("X-User-ID", p.Username) 
-		
+		// 2. Register On-Chain (Direct - PII on Ledger)
 		contract, err := getContract(c)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to network as new user: " + err.Error()})
 		}
 		
-		log.Printf("🔹 WALLET: Creating Wallet on-chain %s (No PII)...", p.Username)
+		log.Printf("🔹 WALLET: Creating User on-chain %s...", p.Username)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.Username, 
+			p.FullName,
+			p.IdentityNumber,
 			"User", 
 		)
 
 		if err != nil {
 			log.Printf("❌ WALLET: On-Chain creation failed: %v", err)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create user on ledger: " + err.Error()})
+		}
+
+		// 3. Update Password Hash in DB (User created by Event Listener, but we need password)
+		// Wait for sync or just Upsert. Safer to Upsert password only if exists?
+		// Simple approach: UPSERT password.
+		hash, _ := auth.HashPassword(p.Password)
+		if pgDB != nil {
+			_, err = pgDB.Exec(`
+				UPDATE users SET password_hash = $1 WHERE id = $2;
+			`, hash, p.Username)
+			// IF event hasn't arrived yet, this UPDATE does nothing.
+			// REVERT: We should probably UPSERT or rely on the fact that we just made the user?
+			// Actually, Event Listener will INSERT the user.
+			// Ideally we shouldn't rely on race condition.
+			// Let's just INSERT PII + Password here as a cache?
+			// NO, "Simple" strategy implies On-Chain is truth. Listener updates DB.
+			// But Listener doesn't know password.
+			// So we MUST store password.
+			// Let's doing: INSERT INTO users ... ON CONFLICT (id) DO UPDATE SET password_hash
+			_, err = pgDB.Exec(`
+				INSERT INTO users (id, full_name, role, status, password_hash)
+				VALUES ($1, $2, 'User', 'Active', $3)
+				ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+			`, p.Username, p.FullName, hash)
 		}
 
 		return c.JSON(fiber.Map{
@@ -1095,29 +1097,31 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 
 		log.Printf("Submitting Transaction: CreateUser (Manual), ID: %s", p.ID)
 		
-		// 1. Store PII in DB
-		if pgDB != nil {
-			hash := ""
-			if p.Password != "" {
-				hash, _ = auth.HashPassword(p.Password)
-			}
-			pgDB.Exec(`
-				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, $5, 'Active', NOW(), NOW())
-				ON CONFLICT (id) DO UPDATE SET
-					full_name = EXCLUDED.full_name,
-					identity_number = EXCLUDED.identity_number;
-			`, p.ID, p.FullName, p.IdentityNumber, hash, p.Role)
-		}
-
-		// 2. Submit to Blockchain (No PII)
+		// 1. Submit to Blockchain (Direct - PII on Ledger)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.ID, 
+			p.FullName,
+			p.IdentityNumber,
 			p.Role, 
 		)
 
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to register user: " + err.Error()})
+		}
+
+		// 2. Store Password in DB (Optional)
+		if pgDB != nil && p.Password != "" {
+			hash, _ := auth.HashPassword(p.Password)
+			// Simple Upsert for password/PII cache
+			// Since Listener will arrive later, we preemptively insert PII to DB here too?
+			// The original code might have done so or relied on Listener.
+			// Let's mirror the Wallet logic: Insert/Upsert PII + Password.
+			pgDB.Exec(`
+				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, 'Active', NOW(), NOW())
+				ON CONFLICT (id) DO UPDATE SET
+					password_hash = EXCLUDED.password_hash;
+			`, p.ID, p.FullName, p.IdentityNumber, hash, p.Role)
 		}
 
 		return c.JSON(fiber.Map{"message": "User registered successfully", "id": p.ID})

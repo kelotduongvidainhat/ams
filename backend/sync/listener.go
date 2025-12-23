@@ -36,13 +36,15 @@ type Asset struct {
 	Currency     string   `json:"currency"`
 }
 
-// User structure matching chaincode
-// User structure matching chaincode (Hybrid Core: No PII)
+// User structure matching chaincode (Including PII)
 type User struct {
-	ID      string  `json:"id"`
-	Role    string  `json:"role"`
-	Status  string  `json:"status"`
-	Balance float64 `json:"balance"`
+	ID             string  `json:"id"`
+	FullName       string  `json:"full_name"`
+	IdentityNumber string  `json:"identity_number"`
+	Role           string  `json:"role"`
+	WalletAddress  string  `json:"wallet_address"`
+	Status         string  `json:"status"`
+	Balance        float64 `json:"balance"`
 }
 
 // StartEventListening begins the infinite loop of event processing
@@ -79,14 +81,13 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 		return
 	}
 
-	// HYBRID CORE SYNC:
-	// We only sync operational data (Role, Status, Balance).
-	// We DO NOT overwrite PII (FullName, Identity) as it's not in the event.
-	
+	// Upsert User (Simple Strategy: Chain is truth, overwrite DB)
 	query := `
-		INSERT INTO users (id, full_name, role, status, balance, updated_at)
-		VALUES ($1, 'Unknown (Synced)', $2, $3, $4, NOW())
+		INSERT INTO users (id, full_name, identity_number, role, status, balance, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET
+			full_name = EXCLUDED.full_name,
+			identity_number = EXCLUDED.identity_number,
 			role = EXCLUDED.role,
 			status = EXCLUDED.status,
 			balance = EXCLUDED.balance,
@@ -95,7 +96,7 @@ func processUserEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	// Handle missing status field in older events
 	if user.Status == "" { user.Status = "Active" }
 
-	_, err := db.Exec(query, user.ID, user.Role, user.Status, user.Balance)
+	_, err := db.Exec(query, user.ID, user.FullName, user.IdentityNumber, user.Role, user.Status, user.Balance)
 	if err != nil {
 		log.Printf("❌ DB Error (Upsert User): %v", err)
 	} else {
