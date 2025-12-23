@@ -8,16 +8,16 @@ echo "        🚀 AMS System: Fresh Start Protocol"
 echo "========================================================="
 
 # 1. Teardown Application
-echo "📉 [Step 1/13] Tearing down Application Services..."
+echo "📉 [Step 1/12] Tearing down Application Services..."
 docker-compose -f docker-compose-app.yaml down --remove-orphans || true
 
 # 2. Cleanup Docker System
-echo "🧹 [Step 2/13] Cleaning up Docker System (Volumes/Networks)..."
+echo "🧹 [Step 2/12] Cleaning up Docker System (Volumes/Networks)..."
 # Force prune to remove conflict volumes
 docker system prune -f --volumes
 
 # 3. Teardown Fabric Network
-echo "📉 [Step 3/13] Tearing down Fabric Network..."
+echo "📉 [Step 3/12] Tearing down Fabric Network..."
 cd network
 ./network.sh down
 cd ..
@@ -25,12 +25,12 @@ cd ..
 # 4. Deep Clean (Permissions)
 # Sometimes Docker creates files as root, requiring sudo to remove
 if [ -d "network/organizations/fabric-ca/org1/msp" ] || [ -d "network/organizations/fabric-ca/ordererOrg/msp" ]; then
-    echo "🧹 [Step 4/13] Cleaning persistent MSP artifacts (requires sudo)..."
+    echo "🧹 [Step 4/12] Cleaning persistent MSP artifacts (requires sudo)..."
     sudo rm -rf network/organizations/fabric-ca/org1/msp network/organizations/fabric-ca/ordererOrg/msp
 fi
 
 # 5. Start Network & Deploy Chaincode
-echo "🚀 [Step 5/13] Bootstrapping Network & Chaincode..."
+echo "🚀 [Step 5/12] Bootstrapping Network & Chaincode..."
 cd network
 ./network.sh up
 ./network.sh createChannel -c mychannel
@@ -38,7 +38,7 @@ cd network
 cd ..
 
 # 6. Enroll Default Users
-echo "🔐 [Step 6/13] Enrolling Default Users..."
+echo "🔐 [Step 6/12] Enrolling Default Users..."
 chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh Tomoko password
 ./scripts/enrollUser.sh Brad password
@@ -51,22 +51,22 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh auditor auditor123
 
 # 7. Launch Application
-echo "🚀 [Step 7/13] Launching Application (Frontend + Backend + DB)..."
+echo "🚀 [Step 7/12] Launching Application (Frontend + Backend + DB)..."
 docker-compose -f docker-compose-app.yaml up -d --build
 
 # 8. Initialize Database
-echo "⏳ [Step 8/13] Waiting for Database to be ready..."
+echo "⏳ [Step 8/12] Waiting for Database to be ready..."
 sleep 10
 echo "💾 Initializing Database Schema..."
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql || echo "⚠️  Database might already be initialized or failed."
 
 
 # 9. Populate Extended Sample Data
-echo "📦 [Step 9/13] Populating Extended Sample Data..."
+echo "📦 [Step 9/12] Populating Extended Sample Data..."
 ./scripts/create_sample_data.sh
 
 # 10. Create Test Authenticated User
-echo "🔐 [Step 10/13] Creating Test User with Password..."
+echo "🔐 [Step 10/12] Creating Test User with Password..."
 sleep 3 # Wait for backend to be fully ready
 curl -s -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
@@ -74,18 +74,12 @@ curl -s -X POST http://localhost:3000/api/users \
   > /dev/null && echo "✅ Test user 'demo_user' created (password: demo123)" || echo "⚠️  User creation skipped (might already exist)"
 
 # 11. Sync Blockchain Users to PostgreSQL
-echo "🔄 [Step 11/13] Syncing blockchain users to PostgreSQL..."
+echo "🔄 [Step 11/12] Syncing blockchain users to PostgreSQL..."
 ./scripts/sync_users.sh
 
 # 12. Add Passwords to All Existing Users
-echo "🔐 [Step 12/13] Adding passwords to all blockchain users..."
+echo "🔐 [Step 12/12] Adding passwords to all blockchain users..."
 ./scripts/add_passwords.sh
-
-# 13. Mint Initial Credits for Marketplace
-echo "💰 [Step 13/13] Minting initial credits for marketplace..."
-sleep 3 # Wait for backend to process previous requests
-chmod +x scripts/mint_credits.sh
-./scripts/mint_credits.sh
 
 echo "========================================================="
 echo "✅  SYSTEM READY"
