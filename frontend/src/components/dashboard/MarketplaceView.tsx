@@ -9,9 +9,10 @@ interface MarketplaceViewProps {
     currentUserId: string;
     userBalance: number;
     onPurchaseSuccess: () => void;
+    refreshTrigger?: number;
 }
 
-export default function MarketplaceView({ currentUserId, userBalance, onPurchaseSuccess }: MarketplaceViewProps) {
+export default function MarketplaceView({ currentUserId, userBalance, onPurchaseSuccess, refreshTrigger }: MarketplaceViewProps) {
     const [assets, setAssets] = useState<PublicAsset[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +46,7 @@ export default function MarketplaceView({ currentUserId, userBalance, onPurchase
 
     useEffect(() => {
         fetchAssets();
-    }, [searchTerm, typeFilter]);
+    }, [searchTerm, typeFilter, refreshTrigger]);
 
     const filteredAssets = showOnlyForSale
         ? assets.filter(asset => asset.status === 'For Sale')

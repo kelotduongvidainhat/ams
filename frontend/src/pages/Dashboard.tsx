@@ -40,6 +40,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [selectedAssetForListing, setSelectedAssetForListing] = useState<Asset | null>(null);
     const [showPendingTransfers, setShowPendingTransfers] = useState(false);
 
+    const [marketplaceRefreshKey, setMarketplaceRefreshKey] = useState(0);
+
     // Initial Tab Selection based on Role
     useEffect(() => {
         if (currentUser.role === 'Auditor') {
@@ -68,6 +70,14 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                 case 'REVOKE_ACCESS':
                     fetchData(); // Refresh asset lists
                     break;
+                case 'ASSET_LISTED':
+                case 'ASSET_DELISTED':
+                    fetchData();
+                    setMarketplaceRefreshKey(prev => prev + 1); // Refresh marketplace
+                    break;
+                case 'CREDITS_MINTED':
+                    fetchBalance();
+                    break;
                 case 'TRANSFER_INITIATED':
                 case 'TRANSFER_APPROVED':
                 case 'TRANSFER_REJECTED':
@@ -78,6 +88,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                     }
                     if (lastMessage.type === 'TRANSFER_APPROVED') {
                         fetchData(); // Ownership changed
+                        setMarketplaceRefreshKey(prev => prev + 1); // Sold items removed from marketplace
+                        fetchBalance(); // Balance might have changed
                     }
                     break;
             }
@@ -200,6 +212,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                                 onShare={(a) => setSelectedAssetForShare(a)}
                                 onEdit={(a) => setSelectedAssetForEdit(a)}
                                 onCreate={() => setIsModalOpen(true)}
+                                onListForSale={(a) => setSelectedAssetForListing(a)} // Ensure this is wired up if not already
                             />
                         )}
 
@@ -216,9 +229,11 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                             <MarketplaceView
                                 currentUserId={currentUser.id}
                                 userBalance={userBalance}
+                                refreshTrigger={marketplaceRefreshKey}
                                 onPurchaseSuccess={() => {
                                     fetchData();
                                     fetchBalance();
+                                    setMarketplaceRefreshKey(prev => prev + 1);
                                 }}
                             />
                         )}
