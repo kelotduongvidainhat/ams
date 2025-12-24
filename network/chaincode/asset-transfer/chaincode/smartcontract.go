@@ -508,9 +508,8 @@ func (s *SmartContract) ApproveTransfer(ctx contractapi.TransactionContextInterf
 		}
 
 		// Emit execution event
-		executedJSON, _ := json.Marshal(pending)
-		ctx.GetStub().SetEvent("TransferExecuted", executedJSON)
-
+		// ctx.GetStub().SetEvent("TransferExecuted", executedJSON)
+		
 		return nil
 	}
 

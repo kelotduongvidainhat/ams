@@ -226,3 +226,28 @@ export const setUserStatus = async (userId: string, status: 'Active' | 'Locked')
     const response = await api.post(`/protected/admin/users/${userId}/status`, { status });
     return response.data;
 };
+
+export const getNetworkHealth = async () => {
+    const response = await api.get<{
+        status: string;
+        block_height: number;
+        peers: string[];
+        orderers: string[];
+        chaincode: string;
+        uptime: string;
+    }>('/protected/admin/health');
+    return response.data;
+};
+
+export const getAnalyticsData = async () => {
+    const response = await api.get<{
+        transaction_volume: { date: string; count: number }[];
+        asset_distribution: { type: string; count: number }[];
+    }>('/protected/admin/analytics');
+    return response.data;
+};
+
+export const getAllPendingTransfers = async () => {
+    const response = await api.get('/protected/admin/transfers');
+    return response.data;
+};

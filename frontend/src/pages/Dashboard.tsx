@@ -306,6 +306,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
 
                 {showPendingTransfers && (
                     <PendingTransfersModal
+                        currentUser={currentUser}
                         onClose={() => setShowPendingTransfers(false)}
                         onSuccess={() => {
                             fetchData();

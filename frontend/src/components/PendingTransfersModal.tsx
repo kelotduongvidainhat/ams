@@ -1,38 +1,40 @@
 import { useState, useEffect } from 'react';
 import { getPendingTransfers, approveTransfer, rejectTransfer } from '../services/api';
 import { X, Clock, CheckCircle2, XCircle, Package, User, ArrowRight, Loader2 } from 'lucide-react';
+import type { PendingTransfer, User as UserType } from '../types';
 
-interface PendingTransfer {
-    asset_id: string;
-    asset_name: string;
-    current_owner: string;
-    new_owner: string;
-    status: string;
-    created_at: number; // Unix timestamp from blockchain
-    expires_at: number; // Unix timestamp from blockchain
+interface PendingTransferWithStatus extends PendingTransfer {
     approval_count: number;
     has_signed: boolean;
     is_recipient: boolean;
 }
 
 interface PendingTransfersModalProps {
+    currentUser: UserType;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export default function PendingTransfersModal({ onClose, onSuccess }: PendingTransfersModalProps) {
-    const [transfers, setTransfers] = useState<PendingTransfer[]>([]);
+export default function PendingTransfersModal({ currentUser, onClose, onSuccess }: PendingTransfersModalProps) {
+    const [transfers, setTransfers] = useState<PendingTransferWithStatus[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         fetchPendingTransfers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchPendingTransfers = async () => {
         try {
-            const data = await getPendingTransfers();
-            setTransfers(data);
+            const data = await getPendingTransfers() as unknown as PendingTransfer[];
+            const mappedProvider: PendingTransferWithStatus[] = data.map((tx: PendingTransfer) => ({
+                ...tx,
+                approval_count: tx.approvals ? tx.approvals.length : 0,
+                has_signed: tx.approvals ? tx.approvals.some((a) => a.signer === currentUser.id) : false,
+                is_recipient: tx.new_owner === currentUser.id
+            }));
+            setTransfers(mappedProvider);
         } catch (error) {
             console.error('Failed to fetch pending transfers:', error);
         } finally {
@@ -121,7 +123,7 @@ export default function PendingTransfersModal({ onClose, onSuccess }: PendingTra
                                         <div className="flex items-center gap-3">
                                             <Package className="w-5 h-5 text-blue-400" />
                                             <div>
-                                                <h3 className="font-semibold text-white">{transfer.asset_name}</h3>
+                                                <h3 className="font-semibold text-white">{transfer.asset_name || transfer.asset_id}</h3>
                                                 <p className="text-xs text-slate-400 font-mono">{transfer.asset_id}</p>
                                             </div>
                                         </div>

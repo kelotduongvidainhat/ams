@@ -64,7 +64,7 @@ func (bl *BlockListener) StartEventListening() {
 
 		
 		switch event.EventName {
-		case "AssetCreated", "AssetUpdated", "AssetTransferred", "TransferExecuted", "AccessGranted", "AccessRevoked", "AssetListed", "AssetDelisted":
+		case "AssetCreated", "AssetUpdated", "AssetTransferred", "AccessGranted", "AccessRevoked", "AssetListed", "AssetDelisted":
 			processAssetEvent(bl.DB, event)
 		case "AssetDeleted":
 			processDeleteEvent(bl.DB, event)
