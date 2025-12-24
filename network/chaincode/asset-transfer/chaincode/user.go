@@ -80,6 +80,15 @@ func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, 
 		return err
 	}
 
+	// Verify Identity
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if user.ID != clientID {
+		return fmt.Errorf("you can only update your own profile. User: %s, Signer: %s", user.ID, clientID)
+	}
+
 	// 2. Update Fields
 	if newFullName != "" {
 		user.FullName = newFullName
@@ -107,6 +116,13 @@ func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, 
 func (s *SmartContract) SetUserStatus(ctx contractapi.TransactionContextInterface, targetUserID string, newStatus string, adminID string) error {
 	// 1. Verify Admin (Caller)
 	// Ideally we check Client Identity here, but passing adminID for simulation/logging consistency
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if clientID != "admin" && clientID != "Admin@org1.example.com" {
+		return fmt.Errorf("only admin can set user status. Signer: %s", clientID)
+	}
 	
 	// 2. Get Target User
 	user, err := s.ReadUser(ctx, targetUserID)

@@ -43,6 +43,11 @@ func (s *SmartContract) InitiateTransfer(ctx contractapi.TransactionContextInter
 		return fmt.Errorf("only asset owner can initiate transfer. Owner: %s, Initiator: %s", asset.Owner, initiatorID)
 	}
 
+	// Check Lock Status
+	if asset.Status == "Locked" {
+		return fmt.Errorf("asset is locked and cannot be transferred")
+	}
+
 	// Cannot transfer to self
 	if newOwner == initiatorID {
 		return fmt.Errorf("cannot transfer asset to yourself")

@@ -251,3 +251,13 @@ export const getAllPendingTransfers = async () => {
     const response = await api.get('/protected/admin/transfers');
     return response.data;
 };
+
+export const lockAsset = async (assetId: string) => {
+    const response = await api.post(`/protected/admin/assets/${assetId}/lock`);
+    return response.data;
+};
+
+export const unlockAsset = async (assetId: string) => {
+    const response = await api.post(`/protected/admin/assets/${assetId}/unlock`);
+    return response.data;
+};

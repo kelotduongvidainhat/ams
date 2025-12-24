@@ -7,6 +7,46 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
+// getSubmittingClientIdentity returns the ID (CommonName) of the transaction submitter
+func (s *SmartContract) getSubmittingClientIdentity(ctx contractapi.TransactionContextInterface) (string, error) {
+	// Method 1: GetX509Certificate (Best for realcerts)
+	cert, err := ctx.GetClientIdentity().GetX509Certificate()
+	if err == nil && cert != nil {
+		if cert.Subject.CommonName != "" {
+			return cert.Subject.CommonName, nil
+		}
+	}
+
+	// Method 2: Fallback to ClientID parsing (for some test setups)
+	clientID, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return "", fmt.Errorf("failed to get client identity: %v", err)
+	}
+	
+	// Format is usually: x509::/CN=Username::/OU=...
+	return extractUsername(clientID), nil
+}
+
+// extractUsername parses the CN from the Hyperledger Fabric client ID string
+func extractUsername(clientID string) string {
+	start := len("x509::/CN=")
+	for i := 0; i < len(clientID)-start; i++ {
+		if clientID[i:i+len("x509::/CN=")] == "x509::/CN=" {
+			// Found start
+			remaining := clientID[i+len("x509::/CN="):]
+			// Find end (::)
+			for j := 0; j < len(remaining); j++ {
+				if j+2 <= len(remaining) && remaining[j:j+2] == "::" {
+					return remaining[:j]
+				}
+			}
+			// If no end found, maybe it's at the end of string
+			return remaining
+		}
+	}
+	return clientID
+}
+
 // SmartContract provides functions for managing an Asset
 type SmartContract struct {
 	contractapi.Contract
@@ -67,20 +107,3 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	return nil
 }
 
-// Helper function to extract username from client ID
-func extractUsername(clientID string) string {
-	// Client ID format: x509::/CN=username::OU=client::...
-	// Extract the CN (Common Name) which is the username
-	start := len("x509::/CN=")
-	end := len(clientID)
-	for i := start; i < len(clientID); i++ {
-		if clientID[i] == ':' {
-			end = i
-			break
-		}
-	}
-	if end > start && end <= len(clientID) {
-		return clientID[start:end]
-	}
-	return clientID // Fallback to full ID if parsing fails
-}

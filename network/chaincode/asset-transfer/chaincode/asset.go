@@ -41,6 +41,15 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("the asset %s already exists", id)
 	}
 
+	// Verify Authorization
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if owner != clientID {
+		return fmt.Errorf("assets can only be created by their owner. Owner: %s, Signer: %s", owner, clientID)
+	}
+
 	asset := Asset{
 		DocType:      "asset",
 		ID:           id,
@@ -98,6 +107,20 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 	oldAsset, err := s.ReadAsset(ctx, id)
 	if err != nil {
 		return err
+	}
+	
+	// Check Lock Status
+	if oldAsset.Status == "Locked" {
+		return fmt.Errorf("asset is locked and cannot be updated")
+	}
+
+	// Verify Ownership
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if oldAsset.Owner != clientID {
+		return fmt.Errorf("only the asset owner can update it. Owner: %s, Signer: %s", oldAsset.Owner, clientID)
 	}
 
 	asset := Asset{
@@ -160,6 +183,20 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 
+	// Check Lock Status
+	if asset.Status == "Locked" {
+		return fmt.Errorf("asset is locked and cannot be transferred")
+	}
+
+	// Verify Ownership
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if asset.Owner != clientID {
+		return fmt.Errorf("only the asset owner can transfer it. Owner: %s, Signer: %s", asset.Owner, clientID)
+	}
+
 	asset.Owner = newOwner
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -171,6 +208,66 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 	return ctx.GetStub().SetEvent("AssetTransferred", assetJSON)
+}
+
+// LockAsset allows the admin to freeze an asset
+func (s *SmartContract) LockAsset(ctx contractapi.TransactionContextInterface, assetID string) error {
+	// Verify Admin
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if clientID != "admin" && clientID != "Admin@org1.example.com" {
+		return fmt.Errorf("only admin can lock assets. Signer: %s", clientID)
+	}
+
+	asset, err := s.ReadAsset(ctx, assetID)
+	if err != nil {
+		return err
+	}
+
+	asset.Status = "Locked"
+	
+	assetJSON, err := json.Marshal(asset)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(assetID, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AssetLocked", assetJSON)
+}
+
+// UnlockAsset allows the admin to unfreeze an asset
+func (s *SmartContract) UnlockAsset(ctx contractapi.TransactionContextInterface, assetID string) error {
+	// Verify Admin
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if clientID != "admin" && clientID != "Admin@org1.example.com" {
+		return fmt.Errorf("only admin can unlock assets. Signer: %s", clientID)
+	}
+
+	asset, err := s.ReadAsset(ctx, assetID)
+	if err != nil {
+		return err
+	}
+
+	asset.Status = "Available" // Default to Available when unlocked
+	
+	assetJSON, err := json.Marshal(asset)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.GetStub().PutState(assetID, assetJSON)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().SetEvent("AssetUnlocked", assetJSON)
 }
 
 // GetAllAssets returns all assets found in world state

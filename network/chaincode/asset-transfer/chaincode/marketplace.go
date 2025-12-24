@@ -18,6 +18,11 @@ func (s *SmartContract) ListAsset(ctx contractapi.TransactionContextInterface, a
 		return err
 	}
 
+	// Check Lock Status
+	if asset.Status == "Locked" {
+		return fmt.Errorf("asset is locked and cannot be listed")
+	}
+
 	asset.Status = "For Sale"
 	asset.Price = price
 	asset.Currency = "USD"
@@ -40,6 +45,11 @@ func (s *SmartContract) DelistAsset(ctx contractapi.TransactionContextInterface,
 	asset, err := s.ReadAsset(ctx, assetID)
 	if err != nil {
 		return err
+	}
+	
+	// Check Lock Status
+	if asset.Status == "Locked" {
+		return fmt.Errorf("asset is locked")
 	}
 
 	if asset.Status != "For Sale" {
@@ -64,6 +74,15 @@ func (s *SmartContract) DelistAsset(ctx contractapi.TransactionContextInterface,
 
 // MintCredits adds balance to a user (Admin/Dev only)
 func (s *SmartContract) MintCredits(ctx contractapi.TransactionContextInterface, userID string, amount float64) error {
+	// Verify Admin
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if clientID != "admin" && clientID != "Admin@org1.example.com" {
+		return fmt.Errorf("only admin can mint credits. Signer: %s", clientID)
+	}
+
 	if amount <= 0 {
 		return fmt.Errorf("amount must be positive")
 	}
@@ -105,6 +124,15 @@ func (s *SmartContract) BuyAsset(ctx contractapi.TransactionContextInterface, as
 	buyer, err := s.ReadUser(ctx, buyerID)
 	if err != nil {
 		return fmt.Errorf("buyer not found: %v", err)
+	}
+
+	// Verify Buyer Identity
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if buyer.ID != clientID {
+		return fmt.Errorf("you can only buy assets for yourself. Buyer: %s, Signer: %s", buyer.ID, clientID)
 	}
 
 	// 4. Get Seller

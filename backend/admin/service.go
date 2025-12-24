@@ -32,6 +32,12 @@ func RegisterRoutes(router fiber.Router, db *sql.DB, fab *fabric.Service) {
 	admin.Get("/assets", func(c *fiber.Ctx) error {
 		return getAllAssets(c, db)
 	})
+	admin.Post("/assets/:id/lock", func(c *fiber.Ctx) error {
+		return setAssetLock(c, fab)
+	})
+	admin.Post("/assets/:id/unlock", func(c *fiber.Ctx) error {
+		return setAssetUnlock(c, fab)
+	})
 
 	// 4. Transaction Control
 	admin.Get("/transfers", func(c *fiber.Ctx) error {
@@ -283,4 +289,44 @@ func getAnalytics(c *fiber.Ctx, db *sql.DB) error {
 		"transaction_volume": volume,
 		"asset_distribution": distribution,
 	})
+}
+
+func setAssetLock(c *fiber.Ctx, fab *fabric.Service) error {
+	assetID := c.Params("id")
+	
+	claims := c.Locals("user").(*auth.Claims)
+	
+	contract, err := fab.GetContractForUser(claims.UserID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to get contract"})
+	}
+
+	log.Printf("🔒 Admin %s locking asset %s", claims.UserID, assetID)
+
+	_, err = contract.SubmitTransaction("LockAsset", assetID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to lock asset: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "Asset locked successfully", "id": assetID})
+}
+
+func setAssetUnlock(c *fiber.Ctx, fab *fabric.Service) error {
+	assetID := c.Params("id")
+	
+	claims := c.Locals("user").(*auth.Claims)
+	
+	contract, err := fab.GetContractForUser(claims.UserID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to get contract"})
+	}
+
+	log.Printf("🔓 Admin %s unlocking asset %s", claims.UserID, assetID)
+
+	_, err = contract.SubmitTransaction("UnlockAsset", assetID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to unlock asset: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "Asset unlocked successfully", "id": assetID})
 }

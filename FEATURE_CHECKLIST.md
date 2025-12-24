@@ -22,6 +22,7 @@ These features are critical for the system to function as a private blockchain a
 - [x] **Security & Administration**:
     - [x] RBAC (Admin/User/Auditor roles)
     - [x] User Locking (On-chain status)
+    - [x] Asset Locking (Admin Freeze)
 - [x] **Backend API Gateway**:
     - [x] Fiber (Golang) Framework
     - [x] JWT Authentication & bcrypt
