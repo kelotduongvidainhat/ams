@@ -5,6 +5,23 @@ Hyperledger Fabric network configuration:
 - **3 Orderers**: orderer1, orderer2, orderer3 (Raft consensus)
 - **3 Peers**: peer0, peer1, peer2 (belonging to Org1)
 
+## System Architecture Flow
+
+### Hybrid Data Pattern
+
+The AMS system uses a hybrid approach to balance between Strong Consistency and High Performance:
+
+1.  **Direct-to-Chain (Strong Consistency)**:
+    *   **Used For**: Authenticated User Profile (`auth/me`), Protected Asset Operations (`Create`, `Update`, `Transfer`, `Buy`).
+    *   **Flow**: Frontend -> Backend -> **Chaincode** -> Ledger.
+    *   **Benefit**: Ensures users see their own updates immediately after a transaction is committed, avoiding "stale read" issues.
+
+2.  **Eventual Consistency (High Performance)**:
+    *   **Used For**: Public Explorer, Search, Aggregated Stats.
+    *   **Flow**: Frontend -> Backend -> **PostgreSQL**.
+    *   **Sync**: A background listener actively syncs Chaincode Events -> PostgreSQL (~100-500ms delay).
+    *   **Benefit**: Allows complex SQL queries (filtering, sorting) that are essentially impossible on the Blockchain ledger.
+
 ## Directory Structure
 
 ```
