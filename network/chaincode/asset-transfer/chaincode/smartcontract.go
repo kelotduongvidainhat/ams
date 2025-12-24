@@ -498,17 +498,18 @@ func (s *SmartContract) ApproveTransfer(ctx contractapi.TransactionContextInterf
 		pending.Status = "EXECUTED"
 		pending.ExecutedAt = now
 
-		// Emit transfer event
-		ctx.GetStub().SetEvent("AssetTransferred", assetJSON)
-
-		// Delete pending transfer (cleanup)
-		err = ctx.GetStub().DelState(pendingKey)
+		// Persist EXECUTED status
+		pendingJSON, err := json.Marshal(pending)
 		if err != nil {
-			return fmt.Errorf("failed to delete pending transfer: %v", err)
+			return fmt.Errorf("failed to marshal pending transfer: %v", err)
+		}
+		err = ctx.GetStub().PutState(pendingKey, pendingJSON)
+		if err != nil {
+			return fmt.Errorf("failed to update pending transfer status: %v", err)
 		}
 
 		// Emit execution event
-		// ctx.GetStub().SetEvent("TransferExecuted", executedJSON)
+		ctx.GetStub().SetEvent("AssetTransferred", assetJSON)
 		
 		return nil
 	}
@@ -621,10 +622,8 @@ func (s *SmartContract) GetAllPendingTransfers(ctx contractapi.TransactionContex
 			continue
 		}
 
-		// Only return PENDING status
-		if pending.Status == "PENDING" {
-			pendingTransfers = append(pendingTransfers, &pending)
-		}
+		// Return all statuses (PENDING, EXECUTED, REJECTED, EXPIRED)
+		pendingTransfers = append(pendingTransfers, &pending)
 	}
 
 	return pendingTransfers, nil

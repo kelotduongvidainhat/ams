@@ -54,7 +54,7 @@ Important features for usability and production readiness.
 ## 🟢 Option (Future Works / Extensions)
 Planned features for future releases (Phase 8).
 
-- [ ] **Dashboard Analytics**: Advanced graphs and stats.
+- [x] **Dashboard Analytics**: Advanced graphs and stats (Transaction Volume, Asset Distribution).
 - [ ] **Network Expansion**: Multi-organization setup (e.g., Org1, Org2).
 - [x] **IPFS Integration**: Decentralized storage for metadata files instead of HTTP URLs.
 - [ ] **Composite Key Refactor**: Optimize status checks using `status~userID` and `balance~userID`, `status~assetID`, `balance~assetID` keys.
@@ -62,6 +62,10 @@ Planned features for future releases (Phase 8).
 - [ ] **Nginx Load Balancer**: Unified entry point for SSL termination and static file serving.
 - [ ] **Redis Caching**: Cache expensive queries (for High-Traffic Public Explorer).
 - [ ] **Advanced Monitoring**: Prometheus/Grafana stack for network health metrics.
+- [x] **Admin Service Enhancements**:
+    - [x] Real-time Network Health (Block Height, Peers).
+    - [x] Transaction Control Module (Multi-sig Management).
+    - [x] Direct Blockchain Querying for Admin Operations.
 
 ## 🔵 NFT Marketplace Extension (Backend Complete ✅)
 Transform the asset management system into a trading platform.

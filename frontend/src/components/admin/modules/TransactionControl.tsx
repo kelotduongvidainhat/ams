@@ -85,7 +85,9 @@ export default function TransactionControl() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center w-fit gap-1 ${tx.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                'bg-slate-700 text-slate-300'
+                                                    tx.status === 'EXECUTED' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                                        tx.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                            'bg-slate-700 text-slate-300'
                                                 }`}>
                                                 <Clock size={10} /> {tx.status}
                                             </span>
