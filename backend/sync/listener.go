@@ -34,6 +34,7 @@ type Asset struct {
 	Viewers      []string `json:"viewers"`
 	Price        float64  `json:"price"`
 	Currency     string   `json:"currency"`
+	LastModifiedBy string `json:"last_modified_by"`
 }
 
 // User structure matching chaincode (Including PII)
@@ -157,8 +158,8 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 
 	// 2. Insert into HISTORY table
 	historyQuery := `
-		INSERT INTO asset_history (tx_id, asset_id, action_type, to_owner, block_number, timestamp, asset_snapshot)
-		VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+		INSERT INTO asset_history (tx_id, asset_id, action_type, to_owner, block_number, timestamp, asset_snapshot, actor_id)
+		VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)
 	`
 	// Map event name to action type
 	actionType := strings.ToUpper(strings.Replace(event.EventName, "Asset", "", 1))
@@ -171,7 +172,7 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 		actionType = "TRANSFER_EXECUTED"
 	}
 
-	_, err = db.Exec(historyQuery, event.TransactionID, asset.ID, actionType, asset.Owner, event.BlockNumber, event.Payload)
+	_, err = db.Exec(historyQuery, event.TransactionID, asset.ID, actionType, asset.Owner, event.BlockNumber, event.Payload, asset.LastModifiedBy)
 
 	if err != nil {
 		log.Printf("❌ DB Error (Insert History): %v", err)

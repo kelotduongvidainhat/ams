@@ -23,9 +23,19 @@ func (s *SmartContract) ListAsset(ctx contractapi.TransactionContextInterface, a
 		return fmt.Errorf("asset is locked and cannot be listed")
 	}
 
+	// Verify Identity
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if asset.Owner != clientID {
+		return fmt.Errorf("only the asset owner can list it. Owner: %s, Signer: %s", asset.Owner, clientID)
+	}
+
 	asset.Status = "For Sale"
 	asset.Price = price
 	asset.Currency = "USD"
+	asset.LastModifiedBy = clientID
 
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -56,8 +66,18 @@ func (s *SmartContract) DelistAsset(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("asset is not for sale")
 	}
 
+	// Verify Identity
+	clientID, err := s.getSubmittingClientIdentity(ctx)
+	if err != nil {
+		return err
+	}
+	if asset.Owner != clientID {
+		return fmt.Errorf("only the asset owner can delist it. Owner: %s, Signer: %s", asset.Owner, clientID)
+	}
+
 	asset.Status = "Available"
 	asset.Price = 0
+	asset.LastModifiedBy = clientID
 	
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -159,6 +179,7 @@ func (s *SmartContract) BuyAsset(ctx contractapi.TransactionContextInterface, as
 	asset.Owner = buyer.ID
 	asset.Status = "Owned"
 	asset.Price = 0
+	asset.LastModifiedBy = buyer.ID // Buyer initiated the purchase
 
 	// 9. Commit Changes
 	buyerJSON, _ := json.Marshal(buyer)

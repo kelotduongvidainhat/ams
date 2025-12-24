@@ -18,9 +18,10 @@ type Asset struct {
 	Status       string   `json:"status"`        // Status (e.g., "Available", "Sold", "Locked", "For Sale")
 	MetadataURL  string   `json:"metadata_url"`  // External Metadata (e.g. IPFS hash)
 	MetadataHash string   `json:"metadata_hash"` // Integrity Check (SHA-256)
-	Viewers      []string `json:"viewers"`       // List of distinct UserIDs allowed to view. "EVERYONE" for public.
-	Price        float64  `json:"price"`         // Market Price (if For Sale)
-	Currency     string   `json:"currency"`      // Currency code (e.g., "USD", "AMS")
+	Viewers        []string `json:"viewers"`          // List of distinct UserIDs allowed to view. "EVERYONE" for public.
+	Price          float64  `json:"price"`            // Market Price (if For Sale)
+	Currency       string   `json:"currency"`         // Currency code (e.g., "USD", "AMS")
+	LastModifiedBy string   `json:"last_modified_by"` // UserID of the last person to modify the asset
 }
 
 // HistoryQueryResult structure used for returning result of history query
@@ -57,9 +58,10 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		Type:         assetType,
 		Owner:        owner,
 		Status:       status,
-		MetadataURL:  metadataUrl,
-		MetadataHash: metadataHash,
-		Viewers:      []string{}, // Default: Private to Owner
+		MetadataURL:    metadataUrl,
+		MetadataHash:   metadataHash,
+		Viewers:        []string{}, // Default: Private to Owner
+		LastModifiedBy: clientID,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -130,9 +132,10 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 		Type:         assetType,
 		Owner:        owner,
 		Status:       status,
-		MetadataURL:  metadataUrl,
-		MetadataHash: metadataHash,
-		Viewers:      oldAsset.Viewers,
+		MetadataURL:    metadataUrl,
+		MetadataHash:   metadataHash,
+		Viewers:        oldAsset.Viewers,
+		LastModifiedBy: clientID,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -198,6 +201,7 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 	}
 
 	asset.Owner = newOwner
+	asset.LastModifiedBy = clientID
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
 		return err
@@ -227,6 +231,7 @@ func (s *SmartContract) LockAsset(ctx contractapi.TransactionContextInterface, a
 	}
 
 	asset.Status = "Locked"
+	asset.LastModifiedBy = clientID
 	
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -257,6 +262,7 @@ func (s *SmartContract) UnlockAsset(ctx contractapi.TransactionContextInterface,
 	}
 
 	asset.Status = "Available" // Default to Available when unlocked
+	asset.LastModifiedBy = clientID
 	
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {

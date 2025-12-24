@@ -183,6 +183,7 @@ func (s *SmartContract) ApproveTransfer(ctx contractapi.TransactionContextInterf
 
 		// ATOMIC TRANSFER EXECUTION
 		asset.Owner = pending.NewOwner
+		asset.LastModifiedBy = approverID // Approver (New Owner) triggered execution
 		assetJSON, err := json.Marshal(asset)
 		if err != nil {
 			return fmt.Errorf("failed to marshal asset: %v", err)
