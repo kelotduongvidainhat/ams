@@ -743,6 +743,36 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 }
 
 
+// UpdateUser allows a user to update their personal information
+func (s *SmartContract) UpdateUser(ctx contractapi.TransactionContextInterface, id string, newFullName string, newIdentityNumber string) error {
+	// 1. Get User
+	user, err := s.ReadUser(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Update Fields
+	if newFullName != "" {
+		user.FullName = newFullName
+	}
+	if newIdentityNumber != "" {
+		user.IdentityNumber = newIdentityNumber
+	}
+	
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	// 3. Commit to Ledger
+	err = ctx.GetStub().PutState(id, userBytes)
+	if err != nil {
+		return err
+	}
+
+	// 4. Emit Event
+	return ctx.GetStub().SetEvent("UserUpdated", userBytes)
+}
 // ReadUser returns the user stored in the world state with given id.
 func (s *SmartContract) ReadUser(ctx contractapi.TransactionContextInterface, id string) (*User, error) {
 	userJSON, err := ctx.GetStub().GetState(id)

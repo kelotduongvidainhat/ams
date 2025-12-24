@@ -68,7 +68,7 @@ func (bl *BlockListener) StartEventListening() {
 			processAssetEvent(bl.DB, event)
 		case "AssetDeleted":
 			processDeleteEvent(bl.DB, event)
-		case "UserCreated", "UserStatusUpdated", "CreditsMinted":
+		case "UserCreated", "UserUpdated", "UserStatusUpdated", "CreditsMinted":
 			processUserEvent(bl.DB, event)
 		}
 	}

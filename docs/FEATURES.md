@@ -43,7 +43,31 @@ The AMS (Asset Management System) uses **Hyperledger Fabric** for blockchain tra
 
 
 
-### 1. Asset Creation (`CreateAsset`)
+### 1. User Management (Basic)
+ 
+ #### User Registration (`CreateUser`)
+ **API**: `POST /api/wallet/register`
+ **Logic**: Creates a new user identity on the blockchain with PII (`FullName`, `IdentityNumber`).
+ 
+ #### User Update (`UpdateUser`)
+ **API**: `PUT /api/users/:id`
+ **Logic**: Updates user's personal information on the blockchain.
+ 
+ **Request**:
+ ```json
+ {
+   "full_name": "New Name",
+   "identity_number": "ID-NEW-99"
+ }
+ ```
+ 
+ **Blockchain State Changes**:
+ - Updates `User` asset in world state
+ - Emits `UserUpdated` event
+ 
+ ---
+ 
+ ### 2. Asset Creation (`CreateAsset`)
 
 **Purpose**: Create a new asset on the blockchain
 

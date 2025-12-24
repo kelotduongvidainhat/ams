@@ -424,12 +424,30 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 	})
 
 	// Get Current User (Session Restore)
+	// Get Current User (Session Restore)
 	protected.Get("/auth/me", func(c *fiber.Ctx) error {
 		claims := c.Locals("user").(*auth.Claims)
-		// We return a structure compatible with the login response "user" field
+		
+		contract, err := getContract(c)
+		if err != nil {
+			// Fallback if contract fails (shouldn't happen)
+			return c.JSON(fiber.Map{"id": claims.UserID, "role": claims.Role})
+		}
+
+		result, err := contract.EvaluateTransaction("ReadUser", claims.UserID)
+		if err != nil {
+			log.Printf("⚠️ Failed to read user details for %s: %v", claims.UserID, err)
+			return c.JSON(fiber.Map{"id": claims.UserID, "role": claims.Role})
+		}
+
+		var user map[string]interface{}
+		json.Unmarshal(result, &user)
+
 		return c.JSON(fiber.Map{
-			"id": claims.UserID,
-			"role": claims.Role,
+			"id":              claims.UserID,
+			"role":            claims.Role,
+			"full_name":       user["full_name"],
+			"identity_number": user["identity_number"],
 		})
 	})
 
@@ -1127,6 +1145,7 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "User registered successfully", "id": p.ID})
 	})
 
+
 	// Get User Details
 	api.Get("/users/:id", func(c *fiber.Ctx) error {
 		contract, err := getContract(c)
@@ -1141,6 +1160,42 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 
 		c.Set("Content-Type", "application/json")
 		return c.Send(evaluateResult)
+	})
+
+	// Update User Info
+	api.Put("/users/:id", func(c *fiber.Ctx) error {
+		// Basic Auth middleware check is already applied to /api/* group in some setups, but here we assume it's protected or handled by getContract if utilizing wallet. 
+		// Actually getContract relies on x-user-id in header for now as per previous context?
+		// We should trust the contract wrapper which handles gateway connection.
+
+		contract, err := getContract(c)
+		if err != nil { return c.Status(401).JSON(fiber.Map{"error": "Unauthorized: " + err.Error()}) }
+
+		id := c.Params("id")
+		
+		type UpdateRequest struct {
+			FullName       string `json:"full_name"`
+			IdentityNumber string `json:"identity_number"`
+		}
+		p := new(UpdateRequest)
+		if err := c.BodyParser(p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		log.Printf("🔹 Updating User %s: Name=%s", id, p.FullName)
+
+		// Submit to Blockchain
+		_, err = contract.SubmitTransaction("UpdateUser", 
+			id, 
+			p.FullName,
+			p.IdentityNumber,
+		)
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to update user: " + err.Error()})
+		}
+
+		return c.JSON(fiber.Map{"message": "User updated successfully"})
 	})
 
 	// Start server (Async)

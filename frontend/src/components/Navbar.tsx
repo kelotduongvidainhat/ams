@@ -7,9 +7,10 @@ interface NavbarProps {
     onViewPendingTransfers: () => void;
     pendingCount: number;
     currentUser: User;
+    onEditProfile: () => void;
 }
 
-export default function Navbar({ onCreateAsset, onLogout, onViewPendingTransfers, pendingCount, currentUser }: NavbarProps) {
+export default function Navbar({ onCreateAsset, onLogout, onViewPendingTransfers, pendingCount, currentUser, onEditProfile }: NavbarProps) {
     return (
         <nav className="glass-panel sticky top-0 z-50 mb-8 border-b border-white/10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,10 +24,14 @@ export default function Navbar({ onCreateAsset, onLogout, onViewPendingTransfers
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="hidden md:flex flex-col items-end mr-2">
+                        <button
+                            onClick={onEditProfile}
+                            className="hidden md:flex flex-col items-end mr-2 hover:bg-white/5 p-1 rounded-md transition-colors text-right"
+                            title="Edit Profile"
+                        >
                             <span className="text-sm text-white font-medium">{currentUser.full_name}</span>
                             <span className="text-xs text-slate-400 font-mono tracking-wider">{currentUser.id}</span>
-                        </div>
+                        </button>
 
                         {/* Pending Transfers Notification */}
                         <button

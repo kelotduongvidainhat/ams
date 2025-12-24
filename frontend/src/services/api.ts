@@ -132,6 +132,11 @@ export const getUser = async (id: string): Promise<User> => {
     return response.data;
 };
 
+export const updateUser = async (id: string, updates: { full_name: string; identity_number: string }) => {
+    const response = await api.put(`/users/${id}`, updates);
+    return response.data;
+};
+
 export const getAssetHistory = async (id: string): Promise<AssetHistory[]> => {
     const response = await api.get<AssetHistory[]>(`/assets/${id}/history`);
     return response.data;
@@ -139,13 +144,13 @@ export const getAssetHistory = async (id: string): Promise<AssetHistory[]> => {
 
 // Multi-Signature Transfer Functions
 export const fetchCurrentUser = async (): Promise<User> => {
-    const response = await api.get<{ id: string; role: string }>('/protected/auth/me');
+    const response = await api.get<{ id: string; role: string; full_name?: string; identity_number?: string }>('/protected/auth/me');
     // Map response to User type (fallback for missing fields)
     return {
         id: response.data.id,
         role: response.data.role,
-        full_name: response.data.id,
-        identity_number: 'N/A',
+        full_name: response.data.full_name || response.data.id,
+        identity_number: response.data.identity_number || 'N/A',
         status: 'Active'
     };
 };

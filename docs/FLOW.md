@@ -12,6 +12,7 @@ This document details the execution flows for key operations in the Asset Manage
 6.  [View History](#6-view-history)
 7.  [Public Explorer](#7-public-explorer)
 8.  [Search Assets](#8-search-assets-filtered)
+9.  [User Edit Profile](#9-user-edit-profile)
 
 ---
 
@@ -266,3 +267,32 @@ sequenceDiagram
 ```
 
 
+
+---
+
+### 9. User Edit Profile
+
+**Description**: Users update their personal information (FullName, IdentityNumber).
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+    participant DB as 💾 PostgreSQL
+
+    User->>Frontend: Click "Edit Profile" (Navbar)
+    Frontend->>Frontend: Show EditProfileModal
+    User->>Frontend: Enter New Name/ID
+    Frontend->>Backend: PUT /api/users/:id
+    Backend->>Fabric: SubmitTransaction("UpdateUser")
+    Fabric->>Fabric: Update User State
+    Fabric->>Fabric: Emit Event: UserUpdated
+    Fabric-->>Backend: Success
+    Backend-->>Frontend: "User updated!"
+    Frontend->>Frontend: Window Reload (to refresh session)
+
+    Fabric->>DB: Event: UserUpdated
+    DB->>DB: UPDATE users SET full_name=..., identity_number=...
+```

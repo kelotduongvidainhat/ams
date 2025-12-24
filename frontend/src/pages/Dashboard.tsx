@@ -4,6 +4,7 @@ import type { Asset, User } from '../types';
 import Navbar from '../components/Navbar';
 import { useWebSocket } from '../context/WebSocketContext';
 import CreateAssetModal from '../components/CreateAssetModal';
+
 import EditAssetModal from '../components/EditAssetModal';
 import TransferModal from '../components/TransferModal';
 import HistoryModal from '../components/HistoryModal';
@@ -15,6 +16,7 @@ import PortfolioView from '../components/dashboard/PortfolioView';
 import ExplorerView from '../components/dashboard/ExplorerView';
 import MarketplaceView from '../components/dashboard/MarketplaceView';
 import AdminLayout from '../components/admin/AdminLayout'; // Fixed Import
+import EditProfileModal from '../components/EditProfileModal';
 import ListAssetModal from '../components/ListAssetModal';
 
 interface DashboardProps {
@@ -39,6 +41,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<Asset | null>(null);
     const [selectedAssetForListing, setSelectedAssetForListing] = useState<Asset | null>(null);
     const [showPendingTransfers, setShowPendingTransfers] = useState(false);
+    const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+
 
     const [marketplaceRefreshKey, setMarketplaceRefreshKey] = useState(0);
 
@@ -144,6 +148,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                 onViewPendingTransfers={() => setShowPendingTransfers(true)}
                 pendingCount={pendingCount}
                 currentUser={currentUser}
+                onEditProfile={() => setIsEditProfileOpen(true)}
             />
 
             {/* Sub-Navigation Tabs */}
@@ -305,6 +310,21 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                         onSuccess={() => {
                             fetchData();
                             fetchPendingCount();
+                        }}
+                    />
+                )}
+
+                {isEditProfileOpen && (
+                    <EditProfileModal
+                        currentUser={currentUser}
+                        onClose={() => setIsEditProfileOpen(false)}
+                        onSuccess={() => {
+                            setIsEditProfileOpen(false);
+                            // Ideally, we wait for websocket event to refresh the currentUser in App.tsx
+                            // But for immediate feedback, we might need a way to refresh currentUser.
+                            // Dashboard props has currentUser, but App.tsx holds the state.
+                            // We might need an onRefreshUser prop or reload window.
+                            window.location.reload();
                         }}
                     />
                 )}
