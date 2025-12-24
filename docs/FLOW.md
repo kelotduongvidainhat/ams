@@ -291,7 +291,12 @@ sequenceDiagram
     Fabric->>Fabric: Emit Event: UserUpdated
     Fabric-->>Backend: Success
     Backend-->>Frontend: "User updated!"
-    Frontend->>Frontend: Window Reload (to refresh session)
+    
+    Note right of Frontend: Refresh Session (Strong Consistency)
+    Frontend->>Backend: GET /api/protected/auth/me
+    Backend->>Fabric: Evaluate("ReadUser") 
+    Fabric-->>Backend: User Data (Updated)
+    Backend-->>Frontend: { id, full_name, ... }
 
     Fabric->>DB: Event: UserUpdated
     DB->>DB: UPDATE users SET full_name=..., identity_number=...
