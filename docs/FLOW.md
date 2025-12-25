@@ -15,6 +15,39 @@ This document details the execution flows for key operations in the Asset Manage
 9.  [User Edit Profile](#9-user-edit-profile)
 
 ---
+### 0. Login Flow
+
+**Description**: User authentication process involving database credentials and JWT generation.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant DB
+    participant Auth
+
+    User->>Frontend: Enter credentials (username, password)
+    Frontend->>Backend: POST /api/auth/login
+    Backend->>DB: SELECT password_hash, role, status FROM users
+    DB-->>Backend: Result (Hash, Role, Status)
+    
+    rect rgb(255, 200, 200)
+    Note over Backend: Security Checks
+    Backend->>Backend: Check Status != "Locked"
+    end
+
+    Backend->>Auth: Verify Password (bcrypt)
+    Auth-->>Backend: Valid
+    Backend->>Auth: Generate JWT (Sign with Secret)
+    Auth-->>Backend: Token string
+
+    Backend-->>Frontend: 200 OK { token, user: {id, role} }
+    Frontend->>Frontend: Store Token (LocalStorage)
+    Frontend->>Frontend: Redirect to Dashboard
+```
+
+---
 
 ### 1. NFT Marketplace: Buy Asset Flow
 

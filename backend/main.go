@@ -112,7 +112,7 @@ func main() {
 			log.Printf("🔎 Explorer Query - Search: %s, Owner: %s, Type: %s", search, owner, itemType)
 
 			// Build Query
-			q := "SELECT id, name, asset_type, owner, status, metadata_url, price, currency, last_tx_id FROM assets WHERE 1=1"
+			q := "SELECT id, name, asset_type, owner, status, metadata_url, price, currency, last_tx_id, last_modified_by FROM assets WHERE 1=1"
 			args := []interface{}{}
 			argId := 1
 
@@ -144,22 +144,24 @@ func main() {
 			var results []map[string]interface{}
 			for rows.Next() {
 				var r struct {
-					ID          string
-					Name        string
-					Type        string
-					Owner       string
-					Status      string
-					MetadataURL string
-					Price       float64
-					Currency    string
-					LastTxID    string
+					ID             string
+					Name           string
+					Type           string
+					Owner          string
+					Status         string
+					MetadataURL    string
+					Price          float64
+					Currency       string
+					LastTxID       string
+					LastModifiedBy string
 				}
-				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.Price, &r.Currency, &r.LastTxID); err != nil {
+				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.Price, &r.Currency, &r.LastTxID, &r.LastModifiedBy); err != nil {
 					continue
 				}
 				results = append(results, map[string]interface{}{
 					"id": r.ID, "name": r.Name, "type": r.Type, "owner": r.Owner, 
 					"status": r.Status, "metadata_url": r.MetadataURL, "price": r.Price, "currency": r.Currency, "last_tx_id": r.LastTxID,
+					"last_modified_by": r.LastModifiedBy,
 				})
 			}
 			

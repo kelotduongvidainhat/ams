@@ -8,6 +8,7 @@ export interface Asset {
     metadata_hash?: string;
     price?: number;
     currency?: string;
+    last_modified_by?: string;
 }
 
 export interface User {
@@ -78,5 +79,6 @@ export interface PublicAsset {
     last_tx_id?: string;
     price?: number;
     currency?: string;
+    last_modified_by?: string;
 }
 

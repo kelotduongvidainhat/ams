@@ -140,6 +140,7 @@ export default function AssetAudit() {
                                     <th className="px-6 py-4">Name</th>
                                     <th className="px-6 py-4">Type</th>
                                     <th className="px-6 py-4">Owner</th>
+                                    <th className="px-6 py-4">Last Modified By</th>
                                     <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
@@ -154,6 +155,15 @@ export default function AssetAudit() {
                                             <span className="px-2 py-1 bg-slate-800 rounded text-xs text-blue-300 border border-slate-700">
                                                 {asset.owner}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {asset.last_modified_by ? (
+                                                <span className="px-2 py-1 bg-emerald-900/20 rounded text-xs text-emerald-400 border border-emerald-700/30">
+                                                    {asset.last_modified_by}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-500">N/A</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-xs text-slate-400">{asset.status || 'N/A'}</span>

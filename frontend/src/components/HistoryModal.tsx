@@ -55,18 +55,26 @@ export default function HistoryModal({ assetId, onClose }: HistoryModalProps) {
                                                 {new Date(record.timestamp).toLocaleString()}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-white">
-                                            <div className="flex flex-col">
-                                                <span className="text-slate-400 text-xs uppercase">Action</span>
-                                                <span className="font-semibold text-blue-400">
-                                                    {index === history.length - 1 ? 'Asset Created' : 'Transfer / Update'}
-                                                </span>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <div className="flex flex-col flex-1">
+                                                    <span className="text-slate-400 text-xs uppercase">Action</span>
+                                                    <span className="font-semibold text-blue-400">
+                                                        {index === history.length - 1 ? 'Asset Created' : 'Transfer / Update'}
+                                                    </span>
+                                                </div>
+                                                <ArrowRight className="text-slate-600" size={16} />
+                                                <div className="flex flex-col flex-1">
+                                                    <span className="text-slate-400 text-xs uppercase">Owner</span>
+                                                    <span className="text-white">{record.record.owner}</span>
+                                                </div>
                                             </div>
-                                            <ArrowRight className="text-slate-600 mx-2" size={16} />
-                                            <div className="flex flex-col">
-                                                <span className="text-slate-400 text-xs uppercase">Owner</span>
-                                                <span>{record.record.owner}</span>
-                                            </div>
+                                            {record.record.last_modified_by && (
+                                                <div className="flex items-center gap-2 text-sm pt-1 border-t border-slate-700/50">
+                                                    <span className="text-slate-400 text-xs uppercase">Modified By:</span>
+                                                    <span className="text-emerald-400 font-medium">{record.record.last_modified_by}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS assets (
     metadata_url    TEXT,
     metadata_hash   CHAR(64),
     viewers         JSONB DEFAULT '[]',     -- Stores list of viewer IDs as JSON Array
+    last_modified_by VARCHAR(64),           -- UserID of the last person to modify the asset
     last_tx_id      VARCHAR(64),            -- usage to link back to Fabric Transaction
     updated_at      TIMESTAMP               -- Timestamp from Fabric Block
 );
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS asset_history (
     block_number    BIGINT,
     timestamp       TIMESTAMP,
     is_valid        BOOLEAN DEFAULT TRUE,
+    actor_id        VARCHAR(64), -- UserID of the person who performed this action
     
     -- Snapshot of data at that point in time (Optional, but good for "Time Travel" queries)
     asset_snapshot  JSONB
@@ -101,6 +103,11 @@ CREATE INDEX IF NOT EXISTS idx_transfer_signatures_pending_id ON transfer_signat
 ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(20, 2) DEFAULT 0.0;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS price DECIMAL(20, 2) DEFAULT 0.0;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
+
+-- ================= PROVENANCE MIGRATION =================
+-- Add last_modified_by tracking for asset provenance
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_modified_by VARCHAR(64);
+ALTER TABLE asset_history ADD COLUMN IF NOT EXISTS actor_id VARCHAR(64);
 
 
 -- 6. SEED DATA (Hybrid Core Architecture)

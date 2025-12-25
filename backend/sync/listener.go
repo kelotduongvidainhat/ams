@@ -127,8 +127,8 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 
 	// 1. Upsert into ASSETS table
 	query := `
-		INSERT INTO assets (id, doc_type, name, asset_type, owner, status, metadata_url, metadata_hash, viewers, price, currency, last_tx_id, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+		INSERT INTO assets (id, doc_type, name, asset_type, owner, status, metadata_url, metadata_hash, viewers, price, currency, last_modified_by, last_tx_id, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			asset_type = EXCLUDED.asset_type,
@@ -139,6 +139,7 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 			viewers = EXCLUDED.viewers,
 			price = EXCLUDED.price,
 			currency = EXCLUDED.currency,
+			last_modified_by = EXCLUDED.last_modified_by,
 			last_tx_id = EXCLUDED.last_tx_id,
 			updated_at = NOW();
 	`
@@ -147,7 +148,7 @@ func processAssetEvent(db *sql.DB, event *client.ChaincodeEvent) {
 	_, err := db.Exec(query, 
 		asset.ID, asset.DocType, asset.Name, asset.Type, asset.Owner, 
 		asset.Status, asset.MetadataURL, asset.MetadataHash, viewersJSON,
-		asset.Price, asset.Currency,
+		asset.Price, asset.Currency, asset.LastModifiedBy,
 		event.TransactionID,
 	)
 
