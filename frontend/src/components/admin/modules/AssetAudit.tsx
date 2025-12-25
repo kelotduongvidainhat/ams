@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Database, FileText, Search, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { Database, FileText, Search, RefreshCw } from 'lucide-react';
 
-import { searchAssets, lockAsset, unlockAsset } from '../../../services/api';
+import { searchAssets } from '../../../services/api';
 import type { Asset, PublicAsset } from '../../../types';
 import HistoryModal from '../../HistoryModal';
 
@@ -35,31 +35,6 @@ export default function AssetAudit() {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         fetchAssets();
-    };
-
-    const handleLockToggle = async (asset: PublicAsset) => {
-        if (!window.confirm(`Are you sure you want to ${asset.status === 'Locked' ? 'unlock' : 'lock'} this asset?`)) return;
-
-        // Optimistic Update
-        const targetStatus = asset.status === 'Locked' ? 'Available' : 'Locked';
-        setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, status: targetStatus } : a));
-
-        try {
-            let response;
-            if (asset.status === 'Locked') {
-                response = await unlockAsset(asset.id);
-            } else {
-                response = await lockAsset(asset.id);
-            }
-            console.log(`Asset ${asset.id} ${targetStatus === 'Locked' ? 'Locked' : 'Unlocked'} Response:`, response);
-
-            // Wait for DB Sync before refetching source of truth
-            setTimeout(fetchAssets, 2000);
-        } catch (err) {
-            console.error("Failed to update asset lock status", err);
-            alert("Failed to update status. See console.");
-            fetchAssets(); // Revert on error
-        }
     };
 
     return (
@@ -140,9 +115,8 @@ export default function AssetAudit() {
                                     <th className="px-6 py-4">Name</th>
                                     <th className="px-6 py-4">Type</th>
                                     <th className="px-6 py-4">Owner</th>
-                                    <th className="px-6 py-4">Last Modified By</th>
                                     <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
+                                    <th className="px-6 py-4 text-right">History</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700/50">
@@ -157,43 +131,22 @@ export default function AssetAudit() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {asset.last_modified_by ? (
-                                                <span className="px-2 py-1 bg-emerald-900/20 rounded text-xs text-emerald-400 border border-emerald-700/30">
-                                                    {asset.last_modified_by}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-slate-500">N/A</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
                                             <span className="text-xs text-slate-400">{asset.status || 'N/A'}</span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleLockToggle(asset)}
-                                                    className={`p-1.5 rounded-lg transition-colors ${asset.status === 'Locked'
-                                                        ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'
-                                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                                        }`}
-                                                    title={asset.status === 'Locked' ? "Unlock Asset" : "Lock Asset"}
-                                                >
-                                                    {asset.status === 'Locked' ? <Unlock size={14} /> : <Lock size={14} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => setSelectedAsset({
-                                                        ID: asset.id,
-                                                        name: asset.name,
-                                                        type: asset.type,
-                                                        owner: asset.owner,
-                                                        status: asset.status,
-                                                        metadata_url: asset.metadata_url || ''
-                                                    })}
-                                                    className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                                                >
-                                                    <FileText size={14} /> Audit
-                                                </button>
-                                            </div>
+                                            <button
+                                                onClick={() => setSelectedAsset({
+                                                    ID: asset.id,
+                                                    name: asset.name,
+                                                    type: asset.type,
+                                                    owner: asset.owner,
+                                                    status: asset.status,
+                                                    metadata_url: asset.metadata_url || ''
+                                                })}
+                                                className="text-blue-400 hover:text-blue-300 flex items-center gap-1 ml-auto"
+                                            >
+                                                <FileText size={14} /> Audit
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

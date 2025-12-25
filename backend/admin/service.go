@@ -32,26 +32,15 @@ func RegisterRoutes(router fiber.Router, db *sql.DB, fab *fabric.Service) {
 	admin.Get("/assets", func(c *fiber.Ctx) error {
 		return getAllAssets(c, db)
 	})
-	admin.Post("/assets/:id/lock", func(c *fiber.Ctx) error {
-		return setAssetLock(c, fab)
-	})
-	admin.Post("/assets/:id/unlock", func(c *fiber.Ctx) error {
-		return setAssetUnlock(c, fab)
-	})
 
 	// 4. Transaction Control
 	admin.Get("/transfers", func(c *fiber.Ctx) error {
-		return getAllPendingTransfers(c, fab)
+		return getAllPendingTransfers(c, db)
 	})
 
 	// 5. Network Configuration
 	admin.Get("/health", func(c *fiber.Ctx) error {
 		return getNetworkHealth(c, fab)
-	})
-
-	// 6. Advanced Analytics
-	admin.Get("/analytics", func(c *fiber.Ctx) error {
-		return getAnalytics(c, db) 
 	})
 }
 // Middleware to ensure user has Admin role
@@ -211,122 +200,42 @@ func getAllAssets(c *fiber.Ctx, db *sql.DB) error {
 	return c.JSON(assets)
 }
 
-func getAllPendingTransfers(c *fiber.Ctx, fab *fabric.Service) error {
-	// Use Admin Identity to query all pending transfers
-	contract, err := fab.GetContractForUser("User1") 
+func getAllPendingTransfers(c *fiber.Ctx, db *sql.DB) error {
+	rows, err := db.Query(`
+		SELECT id, asset_id, current_owner, new_owner, status, created_at
+		FROM pending_transfers
+		ORDER BY created_at DESC
+	`)
 	if err != nil {
-		log.Printf("Error getting contract: %v", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to blockchain"})
+		// Table might not exist yet if no transfers initiated
+		return c.JSON([]map[string]interface{}{})
 	}
+	defer rows.Close()
 
-	result, err := contract.EvaluateTransaction("GetAllPendingTransfers")
-	if err != nil {
-		log.Printf("Error querying pending transfers: %v", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch pending transfers from blockchain"})
+	var transfers []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var assetID, currentOwner, newOwner, status string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &assetID, &currentOwner, &newOwner, &status, &createdAt); err != nil {
+			continue
+		}
+		transfers = append(transfers, map[string]interface{}{
+			"id": id, "asset_id": assetID, "current_owner": currentOwner, "new_owner": newOwner, "status": status, "created_at": createdAt,
+		})
 	}
-
-	// Result is already JSON, send it directly
-	c.Set("Content-Type", "application/json")
-	return c.Send(result)
+	if transfers == nil { transfers = []map[string]interface{}{} }
+	return c.JSON(transfers)
 }
 
 func getNetworkHealth(c *fiber.Ctx, fab *fabric.Service) error {
-	height, err := fab.GetBlockHeight("User1") // Use system user
-	status := "healthy"
-	if err != nil {
-		status = "degraded"
-		log.Printf("Error fetching block height: %v", err)
-	}
-
-	// Simulate orderer/peer check for now as we don't have direct ping here easily without more fabric-sdk-go config
+	// Simulate or fetch real network stats
 	return c.JSON(fiber.Map{
-		"status": status,
+		"status": "healthy",
 		"component": "admin-service",
-		"block_height": height,
-		"peers": []string{"peer0.org1.example.com (Active)"},
-		"orderers": []string{"orderer.example.com (Active)"},
+		"peers": []string{"peer0.org1.example.com", "peer1.org1.example.com", "peer2.org1.example.com"},
+		"orderers": []string{"orderer.example.com"},
 		"chaincode": "asset-transfer",
 		"uptime": "99.9%",
 	})
-}
-
-func getAnalytics(c *fiber.Ctx, db *sql.DB) error {
-	// 1. Transaction Volume (Last 7 Days)
-	rows, err := db.Query(`
-		SELECT to_char(timestamp, 'YYYY-MM-DD') as date, count(*) 
-		FROM asset_history 
-		WHERE timestamp > NOW() - INTERVAL '7 days' 
-		GROUP BY date 
-		ORDER BY date
-	`)
-	var volume []map[string]interface{}
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var date string
-			var count int
-			rows.Scan(&date, &count)
-			volume = append(volume, map[string]interface{}{"date": date, "count": count})
-		}
-	}
-	if volume == nil { volume = []map[string]interface{}{} }
-
-	// 2. Asset Distribution by Type
-	rows2, err := db.Query(`SELECT asset_type, count(*) FROM assets GROUP BY asset_type`)
-	var distribution []map[string]interface{}
-	if err == nil {
-		defer rows2.Close()
-		for rows2.Next() {
-			var t string
-			var c int
-			rows2.Scan(&t, &c)
-			distribution = append(distribution, map[string]interface{}{"type": t, "count": c})
-		}
-	}
-	if distribution == nil { distribution = []map[string]interface{}{} }
-
-	return c.JSON(fiber.Map{
-		"transaction_volume": volume,
-		"asset_distribution": distribution,
-	})
-}
-
-func setAssetLock(c *fiber.Ctx, fab *fabric.Service) error {
-	assetID := c.Params("id")
-	
-	claims := c.Locals("user").(*auth.Claims)
-	
-	contract, err := fab.GetContractForUser(claims.UserID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to get contract"})
-	}
-
-	log.Printf("🔒 Admin %s locking asset %s", claims.UserID, assetID)
-
-	_, err = contract.SubmitTransaction("LockAsset", assetID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to lock asset: " + err.Error()})
-	}
-
-	return c.JSON(fiber.Map{"message": "Asset locked successfully", "id": assetID})
-}
-
-func setAssetUnlock(c *fiber.Ctx, fab *fabric.Service) error {
-	assetID := c.Params("id")
-	
-	claims := c.Locals("user").(*auth.Claims)
-	
-	contract, err := fab.GetContractForUser(claims.UserID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to get contract"})
-	}
-
-	log.Printf("🔓 Admin %s unlocking asset %s", claims.UserID, assetID)
-
-	_, err = contract.SubmitTransaction("UnlockAsset", assetID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to unlock asset: " + err.Error()})
-	}
-
-	return c.JSON(fiber.Map{"message": "Asset unlocked successfully", "id": assetID})
 }

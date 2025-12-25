@@ -4,7 +4,6 @@
 
 1. [Overview](#overview)
 2. [Transaction Types](#transaction-types)
-
 3. [Transaction Lifecycle](#transaction-lifecycle)
 4. [Multi-Signature Transactions](#multi-signature-transactions)
 5. [Transaction Security](#transaction-security)
@@ -41,33 +40,7 @@ The AMS (Asset Management System) uses **Hyperledger Fabric** for blockchain tra
 
 ## Transaction Types
 
-
-
-### 1. User Management (Basic)
- 
- #### User Registration (`CreateUser`)
- **API**: `POST /api/wallet/register`
- **Logic**: Creates a new user identity on the blockchain with PII (`FullName`, `IdentityNumber`).
- 
- #### User Update (`UpdateUser`)
- **API**: `PUT /api/users/:id`
- **Logic**: Updates user's personal information on the blockchain.
- 
- **Request**:
- ```json
- {
-   "full_name": "New Name",
-   "identity_number": "ID-NEW-99"
- }
- ```
- 
- **Blockchain State Changes**:
- - Updates `User` asset in world state
- - Emits `UserUpdated` event
- 
- ---
- 
- ### 2. Asset Creation (`CreateAsset`)
+### 1. Asset Creation (`CreateAsset`)
 
 **Purpose**: Create a new asset on the blockchain
 
@@ -384,34 +357,6 @@ sequenceDiagram
 **Authorization**:
 - ✅ Asset owner
 - ✅ Admin role
-
----
-
----
-
-### 9. NFT Marketplace Transactions (New)
-
-#### 9.1 List Asset (`ListAsset`)
-**Purpose**: Set an asset for sale with a fixed price in on-chain credits.
-**Chaincode**: `ListAsset(assetID, price)`
-**API**: `POST /api/protected/marketplace/list`
-**Logic**: Sets Status="For Sale", Price=X.
-
-#### 9.2 Buy Asset (`BuyAsset`)
-**Purpose**: Atomic purchase of an asset.
-**Chaincode**: `BuyAsset(assetID, buyerID)`
-**API**: `POST /api/protected/marketplace/buy/:id`
-**Logic**:
-1. Checks if asset is "For Sale".
-2. Checks Buyer Balance >= Price.
-3. Transfers Price from Buyer to Seller.
-4. Transfers Ownership to Buyer.
-5. Emits `AssetTransferred` and `UserStatusUpdated`.
-
-#### 9.3 Mint Credits (`MintCredits`)
-**Purpose**: Admin function to issue credits to users (for testing/fiat ramp).
-**Chaincode**: `MintCredits(userID, amount)`
-**API**: `POST /api/protected/marketplace/mint`
 
 ---
 

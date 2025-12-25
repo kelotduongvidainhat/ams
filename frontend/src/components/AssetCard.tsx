@@ -8,16 +8,14 @@ interface AssetCardProps {
     onHistory: (asset: Asset) => void;
     onShare: (asset: Asset) => void;
     onEdit: (asset: Asset) => void;
-    onListForSale?: (asset: Asset) => void;
 }
 
-export default function AssetCard({ asset, currentUser, onTransfer, onHistory, onShare, onEdit, onListForSale }: AssetCardProps) {
+export default function AssetCard({ asset, currentUser, onTransfer, onHistory, onShare, onEdit }: AssetCardProps) {
     const statusColors: Record<string, string> = {
         'Available': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         'Sold': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
         'Locked': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
         'Owned': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-        'For Sale': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     };
 
     const statusClass = statusColors[asset.status] || 'bg-slate-700 text-slate-300';
@@ -25,15 +23,14 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
 
     return (
         <div className="glass-panel rounded-xl p-5 hover:border-blue-500/30 transition-all duration-300 group">
-            {/* ... header ... */}
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-slate-800 rounded-lg border border-slate-700 group-hover:border-blue-500/30 transition-colors">
                         <Box className="w-6 h-6 text-blue-400" />
                     </div>
-                    <div className="min-w-0">
-                        <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors truncate" title={asset.name}>{asset.name}</h3>
-                        <span className="text-xs text-slate-400 font-mono tracking-wide truncate block" title={asset.ID}>#{asset.ID}</span>
+                    <div>
+                        <h3 className="font-semibold text-lg text-white group-hover:text-blue-400 transition-colors">{asset.name}</h3>
+                        <span className="text-xs text-slate-400 font-mono tracking-wide">#{asset.ID}</span>
                     </div>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass} uppercase tracking-wider`}>
@@ -52,18 +49,10 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                     <div className="flex items-center gap-2">
                         <UserIcon size={14} /> <span>Owner</span>
                     </div>
-                    <span className={`text-slate-200 truncate max-w-[120px] ${isOwner ? 'font-bold text-blue-400' : ''}`} title={asset.owner}>
+                    <span className={`text-slate-200 ${isOwner ? 'font-bold text-blue-400' : ''}`}>
                         {asset.owner} {isOwner && '(You)'}
                     </span>
                 </div>
-                {asset.price && asset.status === 'For Sale' && (
-                    <div className="flex items-center justify-between text-sm text-slate-400">
-                        <div className="flex items-center gap-2">
-                            <Tag size={14} /> <span>Price</span>
-                        </div>
-                        <span className="text-emerald-400 font-bold">{asset.price} {asset.currency}</span>
-                    </div>
-                )}
             </div>
 
             <div className="pt-4 border-t border-white/5 space-y-3">
@@ -93,15 +82,6 @@ export default function AssetCard({ asset, currentUser, onTransfer, onHistory, o
                         </button>
                     ) : (
                         <>
-                            {isOwner && onListForSale && (
-                                <button
-                                    onClick={() => onListForSale(asset)}
-                                    className="col-span-4 py-2 px-1 rounded-lg text-xs font-semibold uppercase tracking-wide border transition-all flex items-center justify-center gap-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border-purple-500/20 cursor-pointer mb-1"
-                                >
-                                    <Tag size={14} /> {asset.status === 'For Sale' ? 'Manage Listing' : 'List for Sale'}
-                                </button>
-                            )}
-
                             <button
                                 onClick={() => onEdit(asset)}
                                 disabled={!isOwner}

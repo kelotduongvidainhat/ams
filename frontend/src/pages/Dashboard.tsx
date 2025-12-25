@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getAssets, getPendingTransfers, getUserBalance } from '../services/api';
+import { getAssets, getPendingTransfers } from '../services/api';
 import type { Asset, User } from '../types';
 import Navbar from '../components/Navbar';
-import { useWebSocket } from '../context/WebSocketContext';
 import CreateAssetModal from '../components/CreateAssetModal';
-
 import EditAssetModal from '../components/EditAssetModal';
 import TransferModal from '../components/TransferModal';
 import HistoryModal from '../components/HistoryModal';
@@ -14,10 +12,7 @@ import { Loader2, AlertCircle, LayoutGrid, Globe } from 'lucide-react';
 
 import PortfolioView from '../components/dashboard/PortfolioView';
 import ExplorerView from '../components/dashboard/ExplorerView';
-import MarketplaceView from '../components/dashboard/MarketplaceView';
 import AdminLayout from '../components/admin/AdminLayout'; // Fixed Import
-import EditProfileModal from '../components/EditProfileModal';
-import ListAssetModal from '../components/ListAssetModal';
 
 interface DashboardProps {
     currentUser: User;
@@ -28,10 +23,8 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'marketplace' | 'admin'>('portfolio');
-    const [userBalance, setUserBalance] = useState(0);
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'explorer' | 'admin'>('portfolio');
     const [pendingCount, setPendingCount] = useState(0);
-    const { lastMessage } = useWebSocket();
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,12 +32,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     const [selectedAssetForHistory, setSelectedAssetForHistory] = useState<Asset | null>(null);
     const [selectedAssetForShare, setSelectedAssetForShare] = useState<Asset | null>(null);
     const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<Asset | null>(null);
-    const [selectedAssetForListing, setSelectedAssetForListing] = useState<Asset | null>(null);
     const [showPendingTransfers, setShowPendingTransfers] = useState(false);
-    const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-
-
-    const [marketplaceRefreshKey, setMarketplaceRefreshKey] = useState(0);
 
     // Initial Tab Selection based on Role
     useEffect(() => {
@@ -58,48 +46,11 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
     useEffect(() => {
         fetchData();
         fetchPendingCount();
-        fetchBalance();
+        // Poll for pending transfers every 30 seconds
+        const interval = setInterval(fetchPendingCount, 30000);
+        return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
-
-    // WebSocket Event Listener
-    useEffect(() => {
-        if (lastMessage) {
-            console.log("🔔 WS Event:", lastMessage.type);
-            switch (lastMessage.type) {
-                case 'CREATED':
-                case 'UPDATED':
-                case 'TRANSFERRED':
-                case 'GRANT_ACCESS':
-                case 'REVOKE_ACCESS':
-                    fetchData(); // Refresh asset lists
-                    fetchBalance(); // Balance might have changed (purchase/mint)
-                    break;
-                case 'LISTED':
-                case 'DELISTED':
-                    fetchData();
-                    setMarketplaceRefreshKey(prev => prev + 1); // Refresh marketplace
-                    break;
-                case 'CREDITS_MINTED':
-                    fetchBalance();
-                    break;
-                case 'TRANSFER_INITIATED':
-                case 'TRANSFER_APPROVED':
-                case 'TRANSFER_REJECTED':
-                    fetchPendingCount(); // Refresh badge
-                    if (showPendingTransfers) {
-                        // Force refresh logic for modal would be here, 
-                        // but standard approach is to update badge or have modal poll/listen itself
-                    }
-                    if (lastMessage.type === 'TRANSFER_APPROVED') {
-                        fetchData(); // Ownership changed
-                        setMarketplaceRefreshKey(prev => prev + 1); // Sold items removed from marketplace
-                        fetchBalance(); // Balance might have changed
-                    }
-                    break;
-            }
-        }
-    }, [lastMessage]);
 
     const fetchData = async () => {
         try {
@@ -122,15 +73,7 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
         }
     };
 
-    const fetchBalance = async () => {
-        try {
-            const data = await getUserBalance();
-            setUserBalance(data.balance);
-        } catch (error) {
-            console.error('Failed to fetch balance:', error);
-            setUserBalance(0);
-        }
-    };
+
 
     // Filter Assets
     const myAssets = assets.filter(a => a.owner === currentUser.id);
@@ -148,7 +91,6 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                 onViewPendingTransfers={() => setShowPendingTransfers(true)}
                 pendingCount={pendingCount}
                 currentUser={currentUser}
-                onEditProfile={() => setIsEditProfileOpen(true)}
             />
 
             {/* Sub-Navigation Tabs */}
@@ -174,19 +116,6 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                         >
                             <Globe size={18} /> Public Explorer
                             <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-xs">{publicAssets.length}</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('marketplace')}
-                            className={`py-4 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'marketplace'
-                                ? 'border-purple-500 text-purple-400'
-                                : 'border-transparent text-slate-400 hover:text-white'
-                                }`}
-                        >
-                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            Marketplace
-                            <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full text-xs font-semibold">{userBalance.toFixed(0)} USD</span>
                         </button>
                     </div>
                 </div>
@@ -218,7 +147,6 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                                 onShare={(a) => setSelectedAssetForShare(a)}
                                 onEdit={(a) => setSelectedAssetForEdit(a)}
                                 onCreate={() => setIsModalOpen(true)}
-                                onListForSale={(a) => setSelectedAssetForListing(a)} // Ensure this is wired up if not already
                             />
                         )}
 
@@ -227,20 +155,6 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                             <ExplorerView
                                 currentUser={currentUser}
                                 onHistory={(a) => setSelectedAssetForHistory(a)}
-                            />
-                        )}
-
-                        {/* MARKETPLACE TAB */}
-                        {activeTab === 'marketplace' && (
-                            <MarketplaceView
-                                currentUserId={currentUser.id}
-                                userBalance={userBalance}
-                                refreshTrigger={marketplaceRefreshKey}
-                                onPurchaseSuccess={() => {
-                                    fetchData();
-                                    fetchBalance();
-                                    setMarketplaceRefreshKey(prev => prev + 1);
-                                }}
                             />
                         )}
                     </>
@@ -293,39 +207,12 @@ export default function Dashboard({ currentUser, onLogout }: DashboardProps) {
                     />
                 )}
 
-                {selectedAssetForListing && (
-                    <ListAssetModal
-                        asset={selectedAssetForListing}
-                        onClose={() => setSelectedAssetForListing(null)}
-                        onSuccess={() => {
-                            setSelectedAssetForListing(null);
-                            fetchData();
-                        }}
-                    />
-                )}
-
                 {showPendingTransfers && (
                     <PendingTransfersModal
-                        currentUser={currentUser}
                         onClose={() => setShowPendingTransfers(false)}
                         onSuccess={() => {
                             fetchData();
                             fetchPendingCount();
-                        }}
-                    />
-                )}
-
-                {isEditProfileOpen && (
-                    <EditProfileModal
-                        currentUser={currentUser}
-                        onClose={() => setIsEditProfileOpen(false)}
-                        onSuccess={() => {
-                            setIsEditProfileOpen(false);
-                            // Ideally, we wait for websocket event to refresh the currentUser in App.tsx
-                            // But for immediate feedback, we might need a way to refresh currentUser.
-                            // Dashboard props has currentUser, but App.tsx holds the state.
-                            // We might need an onRefreshUser prop or reload window.
-                            window.location.reload();
                         }}
                     />
                 )}

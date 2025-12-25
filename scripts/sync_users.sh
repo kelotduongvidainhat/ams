@@ -20,25 +20,21 @@ for user_id in "${users[@]}"; do
     
     # Check if user exists
     if echo "$user_data" | jq -e '.id' > /dev/null 2>&1; then
-        # Extract user details (Including PII)
+        # Extract user details
         full_name=$(echo "$user_data" | jq -r '.full_name')
         identity_number=$(echo "$user_data" | jq -r '.identity_number')
         role=$(echo "$user_data" | jq -r '.role')
-        balance=$(echo "$user_data" | jq -r '.balance // 0')
-        status=$(echo "$user_data" | jq -r '.status // "Active"')
         
-        echo "  ✓ Found: $full_name ($role) - Balance: $balance"
+        echo "  ✓ Found: $full_name ($role)"
         
-        # Upsert: Chain is Truth
+        # Insert into PostgreSQL
         docker exec -i ams-postgres psql -U ams_user -d ams_db <<EOF
-INSERT INTO users (id, full_name, identity_number, role, status, balance, updated_at)
-VALUES ('$user_id', '$full_name', '$identity_number', '$role', '$status', $balance, NOW())
+INSERT INTO users (id, full_name, identity_number, role, updated_at)
+VALUES ('$user_id', '$full_name', '$identity_number', '$role', NOW())
 ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     identity_number = EXCLUDED.identity_number,
     role = EXCLUDED.role,
-    status = EXCLUDED.status,
-    balance = EXCLUDED.balance,
     updated_at = NOW();
 EOF
         echo "  ✓ Synced to PostgreSQL"
@@ -54,5 +50,5 @@ echo "========================================================="
 echo ""
 echo "Verifying PostgreSQL..."
 docker exec -i ams-postgres psql -U ams_user -d ams_db -c \
-  "SELECT id, full_name, role, balance FROM users WHERE id IN ('Tomoko', 'Brad', 'JinSoo', 'Max', 'Adriana', 'Michel', 'admin', 'auditor', 'user01') ORDER BY id;"
+  "SELECT id, full_name, role FROM users WHERE id IN ('Tomoko', 'Brad', 'JinSoo', 'Max', 'Adriana', 'Michel', 'admin', 'auditor', 'user01') ORDER BY id;"
 echo ""

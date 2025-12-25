@@ -4,39 +4,41 @@
 API_URL="http://localhost:3000/api"
 
 echo "========================================================="
-echo "        📦 AMS System: Creating Sample Data (Authenticated)"
+echo "        📦 AMS System: Creating Sample Data"
 echo "========================================================="
 
-# Helper function to get token
-get_token() {
-    local username=$1
-    local password=$2
-    
-    # Lowercase username for password convention (mostly)
-    # But add_passwords.sh uses specific mapping.
-    # Tomoko -> tomoko123
-    
-    TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
+# Helper function for creating users
+create_user() {
+    local id=$1
+    local name=$2
+    local identity=$3
+    local role=$4
+
+    echo "👤 Creating User: $name ($id)..."
+    curl -s -X POST "$API_URL/users" \
         -H "Content-Type: application/json" \
-        -d "{\"username\":\"$username\",\"password\":\"$password\"}" | jq -r '.token')
-        
-    echo $TOKEN
+        -d "{
+            \"id\": \"$id\",
+            \"full_name\": \"$name\",
+            \"identity_number\": \"$identity\",
+            \"role\": \"$role\"
+        }" | jq .
+    echo ""
 }
 
-# Helper function for creating assets (Protected)
+# Helper function for curling assets
 create_asset() {
-    local token=$1
-    local id=$2
-    local name=$3
-    local type=$4
-    local owner=$5
-    local status=$6
-    local meta=$7
+    local id=$1
+    local name=$2
+    local type=$3
+    local owner=$4
+    # value removed
+    local status=$5
+    local meta=$6
 
     echo "🔹 Creating Asset: $name ($id) for $owner..."
-    curl -s -X POST "$API_URL/protected/assets" \
+    curl -s -X POST "$API_URL/assets?user_id=$owner" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $token" \
         -d "{
             \"id\": \"$id\",
             \"name\": \"$name\",
@@ -48,92 +50,28 @@ create_asset() {
     echo ""
 }
 
-# Helper function to list asset for sale
-list_asset() {
-    local token=$1
-    local id=$2
-    local price=$3
-    local currency=$4
 
-    echo "🏷️  Listing Asset: $id for $price $currency..."
-    curl -s -X POST "$API_URL/protected/marketplace/list" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $token" \
-        -d "{
-            \"asset_id\": \"$id\",
-            \"price\": $price,
-            \"currency\": \"$currency\"
-        }" | jq .
-    echo ""
-}
+echo "--- 1. Creating Users ---"
+echo "Skipping default user creation (Handled by Chaincode InitLedger)"
 
-# Helper function to mint credits (Admin only)
-mint_credits() {
-    local admin_token=$1
-    local user_id=$2
-    local amount=$3
+echo "--- 2. Creating Assets ---"
 
-    echo "💰 Minting $amount Credits for $user_id..."
-    curl -s -X POST "$API_URL/protected/marketplace/mint" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $admin_token" \
-        -d "{
-            \"target_user_id\": \"$user_id\",
-            \"amount\": $amount
-        }" | jq .
-    echo ""
-}
-
-# --- Login Users ---
-echo "🔑 Logging in users..."
-TOKEN_ADMIN=$(get_token "admin" "admin123")
-TOKEN_TOMOKO=$(get_token "Tomoko" "tomoko123")
-TOKEN_BRAD=$(get_token "Brad" "brad123")
-TOKEN_JINSOO=$(get_token "JinSoo" "jinsoo123")
-TOKEN_MAX=$(get_token "Max" "max123")
-
-if [ "$TOKEN_TOMOKO" == "null" ] || [ "$TOKEN_ADMIN" == "null" ]; then echo "❌ Failed to login users"; exit 1; fi
-echo "✅ Logged in successfully"
-echo ""
-
-echo "--- Minting Initial Credits ---"
-mint_credits "$TOKEN_ADMIN" "Tomoko" 5000000
-mint_credits "$TOKEN_ADMIN" "Brad" 5000000
-mint_credits "$TOKEN_ADMIN" "JinSoo" 5000000
-mint_credits "$TOKEN_ADMIN" "Max" 5000000
-mint_credits "$TOKEN_ADMIN" "demo_user" 1000000
-
-echo "--- Creating & Listing Assets ---"
 
 # 1. Real Estate Assets (Tomoko)
-# Create
-create_asset "$TOKEN_TOMOKO" "asset101" "Luxury Penthouse" "RealEstate" "Tomoko" "Active" "https://example.com/meta/penthouse.json"
-create_asset "$TOKEN_TOMOKO" "asset102" "Seaside Villa" "RealEstate" "Tomoko" "Active" "https://example.com/meta/villa.json"
-
-# List one for sale
-list_asset "$TOKEN_TOMOKO" "asset101" 2500000 "USD"
-
+create_asset "asset101" "Luxury Penthouse" "Real Estate" "Tomoko" "Available" "https://example.com/meta/penthouse.json"
+create_asset "asset102" "Seaside Villa" "Real Estate" "Tomoko" "Available" "https://example.com/meta/villa.json"
 
 # 2. Vehicle Assets (Brad)
-create_asset "$TOKEN_BRAD" "asset201" "Tesla Model S Plaid" "Vehicle" "Brad" "Active" "https://example.com/meta/tesla.json"
-create_asset "$TOKEN_BRAD" "asset202" "Porsche 911 GT3" "Vehicle" "Brad" "Active" "https://example.com/meta/porsche.json"
-
-# List one for sale
-list_asset "$TOKEN_BRAD" "asset202" 185000 "USD"
-
+create_asset "asset201" "Tesla Model S Plaid" "Vehicle" "Brad" "Available" "https://example.com/meta/tesla.json"
+create_asset "asset202" "Porsche 911 GT3" "Vehicle" "Brad" "Available" "https://example.com/meta/porsche.json"
 
 # 3. Art Assets (JinSoo)
-create_asset "$TOKEN_JINSOO" "asset301" "Mona Lisa Replica" "Art" "JinSoo" "Private" "https://example.com/meta/art1.json"
-create_asset "$TOKEN_JINSOO" "asset302" "Ancient Vase" "Art" "JinSoo" "Active" "https://example.com/meta/vase.json"
-
-# List one for sale
-list_asset "$TOKEN_JINSOO" "asset302" 1200 "USD"
-
+create_asset "asset301" "Mona Lisa Replica" "Art" "JinSoo" "Private" "https://example.com/meta/art1.json"
+create_asset "asset302" "Ancient Vase" "Art" "JinSoo" "Available" "https://example.com/meta/vase.json"
 
 # 4. Tech Assets (Max)
-create_asset "$TOKEN_MAX" "asset401" "Quantum Computer Prototype" "Technology" "Max" "Locked" "https://example.com/meta/quantum.json"
-
+create_asset "asset401" "Quantum Computer Prototype" "Technology" "Max" "Locked" "https://example.com/meta/quantum.json"
 
 echo "========================================================="
-echo "✅ Sample Data Created, Credits Minted & Assets Listed Successfully"
+echo "✅ Sample Data Created Successfully"
 echo "========================================================="

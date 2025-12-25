@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Server, Activity, Network, Box } from 'lucide-react';
-import { getNetworkHealth } from '../../../services/api';
+import { useState } from 'react';
+import { Server, Activity, Network } from 'lucide-react';
+
+// import { getNetworkHealth } from '../../../services/api'; // Assume implemented
 
 interface NetworkHealth {
     status: string;
-    block_height: number;
     peers: string[];
     orderers: string[];
     chaincode: string;
@@ -12,22 +12,15 @@ interface NetworkHealth {
 }
 
 export default function NetworkConfig() {
-    const [health, setHealth] = useState<NetworkHealth | null>(null);
-    const [loading, setLoading] = useState(true);
+    // Mock data for now until API is fully ready
+    const [health] = useState<NetworkHealth>({
 
-    useEffect(() => {
-        getNetworkHealth().then(data => {
-            setHealth({
-                ...data,
-                chaincode: data.chaincode || "asset-transfer",
-                uptime: data.uptime || "99.9%"
-            });
-        })
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, []);
-
-    if (loading || !health) return <div className="p-10 text-center text-slate-500">Loading Network Status...</div>;
+        status: "healthy",
+        peers: ["peer0.org1.example.com", "peer1.org1.example.com", "peer2.org1.example.com"],
+        orderers: ["orderer.example.com"],
+        chaincode: "asset-transfer",
+        uptime: "99.9%"
+    });
 
     return (
         <div className="space-y-6">
@@ -51,12 +44,6 @@ export default function NetworkConfig() {
                         <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
                             <span className="text-slate-400">Uptime</span>
                             <span className="text-white font-mono">{health.uptime}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
-                            <span className="text-slate-400">Block Height</span>
-                            <span className="text-blue-400 font-mono font-bold flex items-center gap-2">
-                                <Box size={14} /> {health.block_height}
-                            </span>
                         </div>
                         <div className="flex justify-between items-center p-3 bg-slate-800/50 rounded-lg">
                             <span className="text-slate-400">Chaincode ID</span>

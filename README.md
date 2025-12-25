@@ -9,25 +9,10 @@ This project implements a private blockchain network using **Hyperledger Fabric 
 *   **Automation**: Smart scripts automate the entire process from initializing the network, creating the channel, to deploying the chaincode.
 *   **Asset Management**: Integrated chaincode for commercial asset management (ID, Name, Type, Owner, Status, Metadata).
 *   **Multi-Signature Transfers**: Asset transfers require confirmation from both parties (sender + recipient) within 24 hours.
-*   **NFT Marketplace** 🆕: Buy and sell assets using on-chain credits with atomic transactions.
-*   **Real-time Updates**: WebSocket integration for instant blockchain event notifications.
-*   **IPFS Integration**: Decentralized metadata storage for asset information.
 *   **Wallet-as-a-Service**: Register new users directly via API, automatically creating blockchain wallets.
-*   **Admin & Security**: User locking capability, Admin Dashboard, and RBAC implementation.
+*   **Admin & Security**: User locking capability, Admin Dashboard, and RBAC implementation. 
 
-## �️ Technology Stack & Versions
-
-| Component | Technology | Version |
-| :--- | :--- | :--- |
-| **Blockchain Core** | Hyperledger Fabric | v2.5.9 |
-| **Smart Contract** | Go (Chaincode) | v1.24.0 |
-| **Backend API** | Go Fiber | v2.52.10 |
-| **Frontend UI** | React (Vite) | v19.2.0 / v7.2.4 |
-| **Styling** | Tailwind CSS | v3.4.17 |
-| **Database** | PostgreSQL | v15-alpine |
-| **Storage** | IPFS (Kubo) | Latest |
-
-## �📂 Project Structure
+## 📂 Project Structure
 
 ```
 ams/
@@ -211,23 +196,308 @@ curl -X POST http://localhost:3000/api/wallet/register \
 
 ## 🔄 Transaction Flows
 
-Detailed sequence diagrams for all key operations (Create Asset, Transfer, Buy Asset, etc.) have been moved to a dedicated document.
+### 1️⃣ **Create Asset**
 
-👉 **[See Transaction Flows (docs/FLOW.md)](docs/FLOW.md)**
+**Description**: User creates a new asset on the blockchain.
 
-### Transaction Summary
+```mermaid
+sequenceDiagram
+    participant User as 👤 User (Tomoko)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend API
+    participant Fabric as 🔗 Blockchain
+    participant DB as 💾 PostgreSQL
+
+    User->>Frontend: Click "Create Asset"
+    Frontend->>Frontend: Fill form (Name, Type, Metadata)
+    Frontend->>Backend: POST /protected/assets
+    Backend->>Backend: Verify JWT Token
+    Backend->>Backend: Calculate metadata_hash
+    Backend->>Fabric: SubmitTransaction("CreateAsset")
+    Fabric->>Fabric: Validate & Write to Ledger
+    Fabric-->>Backend: Transaction Success
+    Backend-->>Frontend: 201 Created
+    
+    Note over Fabric,DB: Async Event Listener
+    Fabric->>DB: Event: AssetCreated
+    DB->>DB: INSERT INTO assets
+    Frontend->>Frontend: Refresh asset list
+```
+
+**API Endpoint**: `POST /api/protected/assets`
+
+**Request Body**:
+```json
+{
+  "ID": "asset101",
+  "name": "Luxury Penthouse",
+  "type": "RealEstate",
+  "metadata_url": "https://ipfs.io/ipfs/Qm..."
+}
+```
+
+**Result**:
+- ✅ Asset written to blockchain
+- ✅ Metadata hash automatically calculated
+- ✅ Owner set as creator
+- ✅ Synced to PostgreSQL via event listener
+
+---
+
+### 2️⃣ **Transfer Asset - Multi-Signature**
+
+**Description**: Asset transfer requires confirmation from **2 parties** (sender + recipient) within **24 hours**.
+
+```mermaid
+sequenceDiagram
+    participant Tomoko as 👤 Tomoko (Owner)
+    participant Brad as 👤 Brad (Recipient)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend API
+    participant DB as 💾 PostgreSQL
+    participant Fabric as 🔗 Blockchain
+
+    Note over Tomoko,Fabric: Phase 1: Initiate Transfer (On-Chain)
+    Tomoko->>Frontend: Click "Transfer" on asset101
+    Frontend->>Frontend: Enter new owner: Brad
+    Frontend->>Backend: POST /protected/transfers/initiate
+    Backend->>Backend: Verify User Context
+    Backend->>Fabric: SubmitTransaction("InitiateTransfer", asset101, Brad)
+    Fabric->>Fabric: Verify Ownership & Create Pending State
+    Fabric->>Fabric: Emit Event: TransferInitiated
+    Fabric-->>Backend: Success (Asset Locked)
+    
+    Backend-->>Frontend: Transfer Initiated
+    
+    Fabric->>DB: Event: TransferInitiated
+    DB->>DB: INSERT INTO pending_transfers (from Event)
+
+    Note over Brad,Fabric: Phase 2: Notification & Approval
+    Brad->>Frontend: Login & View Pending Transfers
+    Frontend->>Backend: GET /protected/transfers/pending
+    Backend->>Fabric: Evaluate("GetAllPendingTransfers")
+    Fabric-->>Backend: List of Pending Transfers
+    Backend-->>Frontend: Show Pending List
+    
+    Brad->>Frontend: Click "Approve Transfer"
+    Frontend->>Backend: POST /protected/transfers/:id/approve
+    Backend->>Fabric: SubmitTransaction("ApproveTransfer")
+    Fabric->>Fabric: Verify 2/2 Signatures
+    Fabric->>Fabric: Execute Transfer (Atomic Update)
+    Fabric->>Fabric: Emit Event: AssetTransferred
+    Fabric-->>Backend: Success
+    
+    Backend-->>Frontend: "Transfer executed!"
+    
+    Fabric->>DB: Event: AssetTransferred
+    DB->>DB: UPDATE assets SET owner=Brad
+    Frontend->>Frontend: Refresh Portfolio
+```
+
+**Timeline**:
+- **T+0**: Tomoko initiates → Auto-approved (1/2)
+- **T+1 min to 24h**: Brad approves → Executes immediately ✅
+- **T+24h**: Expires if not approved ❌
+
+**API Endpoints**:
+1. `POST /api/protected/transfers/initiate` - Initiate
+2. `GET /api/protected/transfers/pending` - View pending
+3. `POST /api/protected/transfers/:id/approve` - Approve
+4. `POST /api/protected/transfers/:id/reject` - Reject
+
+**Database Tables**:
+```sql
+pending_transfers (
+  id, asset_id, current_owner, new_owner, 
+  status, created_at, expires_at
+)
+
+transfer_signatures (
+  pending_transfer_id, signer_id, signer_role,
+  action, signed_at
+)
+```
+
+---
+
+### 3️⃣ **Update Asset**
+
+**Description**: Owner or Admin can update asset information.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 Owner
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+    participant DB as 💾 PostgreSQL
+
+    User->>Frontend: Click "Edit" on asset
+    Frontend->>Frontend: Show EditAssetModal
+    User->>Frontend: Update name, status, metadata_url
+    Frontend->>Backend: PUT /protected/assets/:id
+    Backend->>Backend: Verify ownership
+    Backend->>Backend: Recalculate metadata_hash
+    Backend->>Fabric: SubmitTransaction("UpdateAsset")
+    Fabric->>Fabric: Update asset on ledger
+    Fabric-->>Backend: Success
+    Backend-->>Frontend: "Asset updated!"
+    
+    Fabric->>DB: Event: AssetUpdated
+    DB->>DB: UPDATE assets
+    DB->>DB: INSERT INTO asset_history
+```
+
+**Editable Fields**:
+- ✅ `name` - Asset name
+- ✅ `status` - Status (Available, Locked, Under Maintenance)
+- ✅ `metadata_url` - Metadata URL (auto-recalculates hash)
+
+**Immutable Fields**:
+- ❌ `ID` - Cannot participate
+- ❌ `type` - Cannot change
+- ❌ `owner` - Only changes via Transfer
+
+---
+
+### 4️⃣ **Grant Access**
+
+**Description**: Allow other users to view private assets.
+
+```mermaid
+sequenceDiagram
+    participant Owner as 👤 Owner (Tomoko)
+    participant Viewer as 👤 Viewer (Brad)
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+
+    Owner->>Frontend: Click "Share" on asset
+    Frontend->>Frontend: Enter viewer ID: Brad
+    Frontend->>Backend: POST /protected/assets/:id/access
+    Backend->>Fabric: SubmitTransaction("GrantAccess", assetID, Brad)
+    Fabric->>Fabric: Add Brad to viewers[]
+    Fabric-->>Backend: Success
+    Backend-->>Frontend: "Access granted!"
+    
+    Note over Viewer: Brad can now view the asset
+    Viewer->>Frontend: Login & view assets
+    Frontend->>Backend: GET /api/assets?user_id=Brad
+    Backend->>Fabric: GetAllAssets (filtered by Brad)
+    Fabric-->>Backend: [assets where owner=Brad OR Brad in viewers]
+    Backend-->>Frontend: Asset list
+```
+
+**Access Control**:
+- `viewers: []` - Private (owner only)
+- `viewers: ["Brad"]` - Brad can view
+- `viewers: ["EVERYONE"]` - Public
+
+---
+
+### 5️⃣ **View History**
+
+**Description**: View entire asset mutation history from blockchain.
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User/Auditor
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant Fabric as 🔗 Blockchain
+
+    User->>Frontend: Click "History" on asset
+    Frontend->>Backend: GET /api/assets/:id/history
+    Backend->>Fabric: GetAssetHistory(assetID)
+    Fabric->>Fabric: Query all blocks for asset
+    Fabric-->>Backend: [{ txId, timestamp, record }]
+    Backend-->>Frontend: History array
+    Frontend->>Frontend: Display timeline
+```
+
+**History Record**:
+```json
+{
+  "tx_id": "abc123...",
+  "timestamp": "2025-12-20T08:00:00Z",
+  "is_delete": false,
+  "record": {
+    "ID": "asset101",
+    "name": "Luxury Penthouse",
+    "owner": "Tomoko",
+    "status": "Available"
+  }
+}
+```
+
+---
+
+### 6️⃣ **Public Explorer**
+
+**Description**: View all public assets from PostgreSQL (no login required).
+
+```mermaid
+sequenceDiagram
+    participant Public as 🌐 Public User
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant DB as 💾 PostgreSQL
+
+    Public->>Frontend: Access http://localhost:5173
+    Frontend->>Frontend: Navigate to "Public Explorer"
+    Frontend->>Backend: GET /api/explorer/assets
+    Backend->>DB: SELECT * FROM assets LIMIT 50
+    DB-->>Backend: Asset list
+    Backend-->>Frontend: JSON response
+    Frontend->>Frontend: Display asset cards
+```
+
+**Features**:
+- ✅ No authentication required
+- ✅ Search by name, owner, type
+- ✅ View transaction history
+- ✅ Real-time updates (synced from blockchain)
+
+---
+
+### 7️⃣ **Search Assets (Filtered)**
+
+**Description**: Users filter public assets using specific criteria (Name, Owner, Type).
+
+```mermaid
+sequenceDiagram
+    participant Public as 🌐 Public User
+    participant Frontend as 🖥️ Frontend
+    participant Backend as ⚙️ Backend
+    participant DB as 💾 PostgreSQL
+
+    Public->>Frontend: Enter Search Criteria (e.g. Type="RealEstate")
+    Frontend->>Frontend: Construct Query (?type=RealEstate)
+    Frontend->>Backend: GET /api/explorer/assets?type=RealEstate
+    Backend->>DB: SELECT * FROM assets WHERE type='RealEstate'
+    DB-->>Backend: Filtered Result Set
+    Backend-->>Frontend: JSON [Asset1, Asset2...]
+    Frontend->>Frontend: Update Grid View (Filtered)
+```
+
+**Filters Supported**:
+- ✅ **Name**: Partial match (ILIKE)
+- ✅ **Owner**: Exact match
+- ✅ **Type**: Exact match (RealEstate, Art, Vehicle)
+
+---
+
+### 📊 **Transaction Summary Table**
 
 | Operation | Endpoint | Auth | Multi-Sig | Blockchain | Database |
 |-----------|----------|------|-----------|------------|----------|
 | Create Asset | `POST /protected/assets` | ✅ | ❌ | ✅ Write | ✅ Sync |
 | Transfer Asset | `POST /protected/transfers/initiate` | ✅ | ✅ 2/2 | ✅ Write | ✅ Pending |
 | Approve Transfer | `POST /protected/transfers/:id/approve` | ✅ | ✅ | ✅ Execute | ✅ Update |
-| Buy Asset | `POST /protected/marketplace/buy/:id` | ✅ | ❌ | ✅ Atomic | ✅ Sync |
 | Update Asset | `PUT /protected/assets/:id` | ✅ | ❌ | ✅ Write | ✅ Sync |
 | Grant Access | `POST /protected/assets/:id/access` | ✅ | ❌ | ✅ Write | ❌ |
 | View History | `GET /api/assets/:id/history` | ❌ | ❌ | ✅ Read | ❌ |
 | Explorer | `GET /api/explorer/assets` | ❌ | ❌ | ❌ | ✅ Read |
-
 
 ---
 
@@ -330,7 +600,7 @@ Core modules are completed (MVP Completed):
 
 #### **Phase 5: Authentication System ✅ Completed**
 *   **Goal**: Security & Session Management.
-*   **Implementation**: Bcrypt Hashing, JWT Authentication, Secure Endpoints (`/protected`), secure Login API, **Session Persistence**.
+*   **Implementation**: Bcrypt Hashing, JWT Authentication, Secure Endpoints (`/protected`), secure Login API.
 
 #### **Phase 6: On-Chain Multi-Sig Architecture ✅ Completed**
 *   **Goal**: On-chain Multi-Sig Logic.
@@ -344,35 +614,20 @@ Core modules are completed (MVP Completed):
     *   **Real-time Sync**: User status synced immediately.
     *   *Documentation*: See [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md).
 
-#### **Phase 8: NFT Marketplace ✅ Completed** 🆕
-*   **Goal**: Enable asset trading with on-chain economy.
-*   **Features**:
-    *   **On-Chain Credits**: User balance system for transactions.
-    *   **List for Sale**: Asset owners can set prices and list assets.
-    *   **Buy Assets**: Atomic purchase with balance transfer.
-    *   **Marketplace UI**: Dedicated tab with search, filters, and balance display.
-    *   **Real-time Updates**: WebSocket notifications for marketplace events.
-    *   **Performance**: 7 transactions/second, tested with 5 concurrent users.
-    *   *Documentation*: See [docs/MARKETPLACE_IMPLEMENTATION.md](docs/MARKETPLACE_IMPLEMENTATION.md).
-
-#### **Phase 9: Future Works (Planned)**
+#### **Phase 8: Future Works (Planned)**
 *   **Goal**: Scaling & New Features.
 *   **Planned Features**:
     *   **Dashboard Analytics**: Advanced data visualization.
     *   **Network Expansion**: Multi-organization setup.
-    *   **Multi-Currency Support**: ETH, BTC, custom tokens.
-    *   **Auction System**: Bidding mechanism for assets.
+    *   **IPFS Integration**: ✅ Completed (Decentralized storage for asset metadata).
     *   **Composite Key Status**: Refactor user locking to use composite keys (`status~userID`) for better concurrency at scale.
 
 ---
 
 ## 🛠️ Helper Scripts
 
-*   `scripts/fresh_start.sh`: Automate Reset & Re-deploy (includes marketplace setup).
+*   `scripts/fresh_start.sh`: Automate Reset & Re-deploy.
 *   `scripts/create_sample_data.sh`: Create sample assets.
-*   `scripts/test_marketplace.sh`: Test marketplace functionality.
-*   `scripts/test_auth_me.sh`: Test session authentication endpoint.
-
 
 ---
 
@@ -383,9 +638,7 @@ For more specific details, please refer to the documents in the `docs/` folder:
 *   **[System Architecture](docs/ARCHITECTURE.md)**: Technical details on Network, Backend, Frontend, and Database.
 *   **[Operations Guide](docs/OPERATIONS.md)**: Admin guide, scripts, and user account management.
 *   **[Features & Workflows](docs/FEATURES.md)**: Transaction flows, wallet services, and multi-sig logic.
-*   **[NFT Marketplace](docs/MARKETPLACE_IMPLEMENTATION.md)**: Complete marketplace implementation guide.
-*   **[Marketplace Testing](docs/MARKETPLACE_TEST_REPORT.md)**: Functional test results.
-*   **[Stress Testing](docs/STRESS_TEST_REPORT.md)**: Performance and scalability analysis.
-*   **[Privacy & Architecture](docs/PRIVACY_PATTERNS.md)**: Analysis of Hybrid Core and Privacy Patterns.
 
 For finding old document versions, check `docs/archive/`.
+
+ 

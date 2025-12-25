@@ -6,9 +6,6 @@ export interface Asset {
     status: string;
     metadata_url: string;
     metadata_hash?: string;
-    price?: number;
-    currency?: string;
-    last_modified_by?: string;
 }
 
 export interface User {
@@ -18,7 +15,6 @@ export interface User {
     role: string;
     wallet_address?: string;
     status: string; // "Active" | "Locked"
-    balance?: number;
 }
 
 export interface AuthResponse {
@@ -47,26 +43,13 @@ export interface UserStats extends User {
     joined_at: string;
 }
 
-export interface Approval {
-    signer: string;
-    role: string;
-    timestamp: number;
-    comment: string;
-}
-
 export interface PendingTransfer {
+    id: number;
     asset_id: string;
-    asset_name: string;
     current_owner: string;
     new_owner: string;
     status: string;
-    created_at: number;
-    expires_at: number;
-    executed_at?: number;
-    rejection_reason?: string;
-    approvals: Approval[];
-    // Helper fields from backend logic (if any kept, but we are raw now)
-    // We might need to compute helpers on frontend
+    created_at: string;
 }
 
 export interface PublicAsset {
@@ -77,8 +60,4 @@ export interface PublicAsset {
     status: string;
     metadata_url: string;
     last_tx_id?: string;
-    price?: number;
-    currency?: string;
-    last_modified_by?: string;
 }
-

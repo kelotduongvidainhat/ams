@@ -9,7 +9,6 @@ interface PortfolioViewProps {
     onShare: (asset: Asset) => void;
     onEdit: (asset: Asset) => void;
     onCreate: () => void;
-    onListForSale?: (asset: Asset) => void;
 }
 
 export default function PortfolioView({
@@ -19,8 +18,7 @@ export default function PortfolioView({
     onHistory,
     onShare,
     onEdit,
-    onCreate,
-    onListForSale
+    onCreate
 }: PortfolioViewProps) {
     return (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -49,7 +47,6 @@ export default function PortfolioView({
                             onHistory={onHistory}
                             onShare={onShare}
                             onEdit={onEdit}
-                            onListForSale={onListForSale}
                         />
                     ))}
                 </div>

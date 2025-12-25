@@ -27,17 +27,15 @@ CREATE TABLE IF NOT EXISTS assets (
     metadata_url    TEXT,
     metadata_hash   CHAR(64),
     viewers         JSONB DEFAULT '[]',     -- Stores list of viewer IDs as JSON Array
-    last_modified_by VARCHAR(64),           -- UserID of the last person to modify the asset
     last_tx_id      VARCHAR(64),            -- usage to link back to Fabric Transaction
     updated_at      TIMESTAMP               -- Timestamp from Fabric Block
 );
 
 -- Indexes for Explorer Performance
-CREATE INDEX IF NOT EXISTS idx_assets_owner ON assets(owner);
-CREATE INDEX IF NOT EXISTS idx_assets_type ON assets(asset_type);
-CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);
-CREATE INDEX IF NOT EXISTS idx_assets_viewers ON assets USING gin (viewers); -- GIN index for JSONB Array searching
-
+CREATE INDEX idx_assets_owner ON assets(owner);
+CREATE INDEX idx_assets_type ON assets(asset_type);
+CREATE INDEX idx_assets_status ON assets(status);
+CREATE INDEX idx_assets_viewers ON assets USING gin (viewers); -- GIN index for JSONB Array searching
 
 -- 3. ASSET_HISTORY Table (Audit Trail)
 -- Stores a permanent record of every state change (Provenance).
@@ -51,16 +49,15 @@ CREATE TABLE IF NOT EXISTS asset_history (
     block_number    BIGINT,
     timestamp       TIMESTAMP,
     is_valid        BOOLEAN DEFAULT TRUE,
-    actor_id        VARCHAR(64), -- UserID of the person who performed this action
     
     -- Snapshot of data at that point in time (Optional, but good for "Time Travel" queries)
     asset_snapshot  JSONB
 );
 
 -- Index for History Lookups
-CREATE INDEX IF NOT EXISTS idx_history_asset_id ON asset_history(asset_id);
-CREATE INDEX IF NOT EXISTS idx_history_tx_id ON asset_history(tx_id);
-CREATE INDEX IF NOT EXISTS idx_history_timestamp ON asset_history(timestamp DESC); -- For recent transaction queries
+CREATE INDEX idx_history_asset_id ON asset_history(asset_id);
+CREATE INDEX idx_history_tx_id ON asset_history(tx_id);
+CREATE INDEX idx_history_timestamp ON asset_history(timestamp DESC); -- For recent transaction queries
 
 -- 4. PENDING_TRANSFERS Table (Multi-Signature Transfers)
 -- Stores transfer requests that require approval from both parties
@@ -91,36 +88,8 @@ CREATE TABLE IF NOT EXISTS transfer_signatures (
 );
 
 -- Indexes for Multi-Sig Queries
-CREATE INDEX IF NOT EXISTS idx_pending_transfers_current_owner ON pending_transfers(current_owner);
-CREATE INDEX IF NOT EXISTS idx_pending_transfers_new_owner ON pending_transfers(new_owner);
-CREATE INDEX IF NOT EXISTS idx_pending_transfers_status ON pending_transfers(status);
-CREATE INDEX IF NOT EXISTS idx_pending_transfers_expires_at ON pending_transfers(expires_at);
-CREATE INDEX IF NOT EXISTS idx_transfer_signatures_pending_id ON transfer_signatures(pending_transfer_id);
-
--- ================= MARKETPLACE MIGRATION =================
--- Run these if tables already exist
-
-ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(20, 2) DEFAULT 0.0;
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS price DECIMAL(20, 2) DEFAULT 0.0;
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
-
--- ================= PROVENANCE MIGRATION =================
--- Add last_modified_by tracking for asset provenance
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_modified_by VARCHAR(64);
-ALTER TABLE asset_history ADD COLUMN IF NOT EXISTS actor_id VARCHAR(64);
-
-
--- 6. SEED DATA (Hybrid Core Architecture)
--- Seed default users with PII since they are now anonymous on-chain
-INSERT INTO users (id, full_name, identity_number, role, status) VALUES 
-('user01', 'User One', 'ID001', 'User', 'Active'),
-('Tomoko', 'Tomoko', 'ID002', 'User', 'Active'),
-('Brad', 'Brad', 'ID003', 'User', 'Active'),
-('JinSoo', 'Jin Soo', 'ID004', 'User', 'Active'),
-('Max', 'Max', 'ID005', 'User', 'Active'),
-('Adriana', 'Adriana', 'ID006', 'User', 'Active'),
-('Michel', 'Michel', 'ID007', 'User', 'Active'),
-('admin', 'System Admin', 'ID000', 'Admin', 'Active'),
-('auditor', 'Auditor One', 'ID999', 'Auditor', 'Active')
-ON CONFLICT (id) DO NOTHING;
-
+CREATE INDEX idx_pending_transfers_current_owner ON pending_transfers(current_owner);
+CREATE INDEX idx_pending_transfers_new_owner ON pending_transfers(new_owner);
+CREATE INDEX idx_pending_transfers_status ON pending_transfers(status);
+CREATE INDEX idx_pending_transfers_expires_at ON pending_transfers(expires_at);
+CREATE INDEX idx_transfer_signatures_pending_id ON transfer_signatures(pending_transfer_id);

@@ -66,39 +66,6 @@ export const uploadToIPFS = async (file: File) => {
     return response.data;
 };
 
-// --- Marketplace API ---
-
-export const listAssetForSale = async (assetId: string, price: number) => {
-    const response = await api.post('/protected/marketplace/list', {
-        asset_id: assetId,
-        price: price,
-    });
-    return response.data;
-};
-
-export const delistAsset = async (assetId: string) => {
-    const response = await api.post(`/protected/marketplace/delist/${assetId}`);
-    return response.data;
-};
-
-export const buyAsset = async (assetId: string) => {
-    const response = await api.post(`/protected/marketplace/buy/${assetId}`);
-    return response.data;
-};
-
-export const mintCredits = async (targetUserId: string, amount: number) => {
-    const response = await api.post('/protected/marketplace/mint', {
-        target_user_id: targetUserId,
-        amount: amount,
-    });
-    return response.data;
-};
-
-export const getUserBalance = async (): Promise<{ user_id: string; balance: number }> => {
-    const response = await api.get('/protected/user/balance');
-    return response.data;
-};
-
 // --- User API ---
 
 export const login = async (username: string, password: string) => {
@@ -132,29 +99,12 @@ export const getUser = async (id: string): Promise<User> => {
     return response.data;
 };
 
-export const updateUser = async (id: string, updates: { full_name: string; identity_number: string }) => {
-    const response = await api.put(`/users/${id}`, updates);
-    return response.data;
-};
-
 export const getAssetHistory = async (id: string): Promise<AssetHistory[]> => {
     const response = await api.get<AssetHistory[]>(`/assets/${id}/history`);
     return response.data;
 };
 
 // Multi-Signature Transfer Functions
-export const fetchCurrentUser = async (): Promise<User> => {
-    const response = await api.get<{ id: string; role: string; full_name?: string; identity_number?: string }>('/protected/auth/me');
-    // Map response to User type (fallback for missing fields)
-    return {
-        id: response.data.id,
-        role: response.data.role,
-        full_name: response.data.full_name || response.data.id,
-        identity_number: response.data.identity_number || 'N/A',
-        status: 'Active'
-    };
-};
-
 export const initiateTransfer = async (assetId: string, newOwner: string) => {
     const response = await api.post('/protected/transfers/initiate', {
         asset_id: assetId,
@@ -224,40 +174,5 @@ export const getAllUsers = async (): Promise<UserStats[]> => {
 
 export const setUserStatus = async (userId: string, status: 'Active' | 'Locked') => {
     const response = await api.post(`/protected/admin/users/${userId}/status`, { status });
-    return response.data;
-};
-
-export const getNetworkHealth = async () => {
-    const response = await api.get<{
-        status: string;
-        block_height: number;
-        peers: string[];
-        orderers: string[];
-        chaincode: string;
-        uptime: string;
-    }>('/protected/admin/health');
-    return response.data;
-};
-
-export const getAnalyticsData = async () => {
-    const response = await api.get<{
-        transaction_volume: { date: string; count: number }[];
-        asset_distribution: { type: string; count: number }[];
-    }>('/protected/admin/analytics');
-    return response.data;
-};
-
-export const getAllPendingTransfers = async () => {
-    const response = await api.get('/protected/admin/transfers');
-    return response.data;
-};
-
-export const lockAsset = async (assetId: string) => {
-    const response = await api.post(`/protected/admin/assets/${assetId}/lock`);
-    return response.data;
-};
-
-export const unlockAsset = async (assetId: string) => {
-    const response = await api.post(`/protected/admin/assets/${assetId}/unlock`);
     return response.data;
 };

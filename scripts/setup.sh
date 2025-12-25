@@ -20,23 +20,11 @@ if ! command -v docker &> /dev/null; then
 fi
 echo -e "${GREEN}✓ Docker is installed${NC}"
 
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo -e "${RED}[ERROR] Docker Compose is not installed.${NC} Please install Docker Compose."
+if ! command -v go &> /dev/null; then
+    echo -e "${RED}[ERROR] Go is not installed.${NC} Please install Go v1.20+."
     exit 1
 fi
-echo -e "${GREEN}✓ Docker Compose is installed${NC}"
-
-if ! command -v go &> /dev/null; then
-    echo -e "${YELLOW}[WARN] Go is not installed.${NC} Required for local backend development."
-else
-    echo -e "${GREEN}✓ Go is installed${NC}"
-fi
-
-if ! command -v node &> /dev/null; then
-    echo -e "${YELLOW}[WARN] Node.js is not installed.${NC} Required for local frontend development."
-else
-    echo -e "${GREEN}✓ Node.js is installed${NC}"
-fi
+echo -e "${GREEN}✓ Go is installed${NC}"
 
 if ! command -v jq &> /dev/null; then
     echo -e "${YELLOW}[WARN] jq is not installed.${NC} Installing jq..."
@@ -70,7 +58,7 @@ fi
 echo -e "\n${YELLOW}--- Setting Permissions ---${NC}"
 chmod +x scripts/*.sh
 chmod +x network/*.sh
-
+chmod +x network/scripts/*.sh
 echo -e "${GREEN}✓ Permissions set${NC}"
 
 echo -e "\n${GREEN}=== Setup Complete! ===${NC}"

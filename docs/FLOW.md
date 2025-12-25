@@ -4,13 +4,12 @@ This document details the execution flows for key operations in the Asset Manage
 
 ## 📋 Table of Contents
 
-1.  [NFT Marketplace: Buy Asset](#1-nft-marketplace-buy-asset-flow)
-2.  [Create Asset](#2-create-asset)
-3.  [Transfer Asset (Multi-Sig)](#3-transfer-asset---multi-signature)
-4.  [Update Asset](#4-update-asset)
-5.  [Grant Access](#5-grant-access)
-6.  [View History](#6-view-history)
-7.  [Public Explorer](#7-public-explorer)
+1.  [Create Asset](#1-create-asset)
+2.  [Transfer Asset (Multi-Sig)](#2-transfer-asset---multi-signature)
+3.  [Update Asset](#3-update-asset)
+4.  [Grant Access](#4-grant-access)
+5.  [View History](#5-view-history)
+6.  [Public Explorer](#6-public-explorer)
 8.  [Search Assets](#8-search-assets-filtered)
 9.  [User Edit Profile](#9-user-edit-profile)
 
@@ -45,45 +44,6 @@ sequenceDiagram
     Backend-->>Frontend: 200 OK { token, user: {id, role} }
     Frontend->>Frontend: Store Token (LocalStorage)
     Frontend->>Frontend: Redirect to Dashboard
-```
-
----
-
-### 1. NFT Marketplace: Buy Asset Flow
-
-**Description**: The precise sequence of events when a user purchases an asset from the marketplace. This operation is **atomic**, meaning the financial transaction (Credits transfer) and asset ownership transfer happen simultaneously within the same block transaction.
-
-```mermaid
-sequenceDiagram
-    participant Buyer
-    participant Frontend
-    participant Backend
-    participant Chaincode
-    participant Listener
-    participant DB
-
-    Buyer->>Frontend: Clicks "Buy Now" (Asset A, $100)
-    Frontend->>Backend: POST /protected/marketplace/buy/AssetA
-    Backend->>Chaincode: specific BuyAsset(AssetA, BuyerID)
-    
-    Note right of Chaincode: ATOMIC EXECUTION (Smart Contract)
-    Chaincode->>Chaincode: Verify Status is "For Sale"
-    Chaincode->>Chaincode: Verify Balance ($500 >= $100)
-    Chaincode->>Chaincode: Transfer $100 from Buyer to Seller
-    Chaincode->>Chaincode: Transfer Ownership to Buyer
-    Chaincode->>Chaincode: Set Status="Owned", Price=0
-    Chaincode-->>Backend: Success (TxID)
-    
-    par Async Updates
-        Chaincode->>Listener: Event: AssetTransferred + UserUpdated
-        Listener->>DB: UPDATE assets SET owner=Buyer
-        Listener->>DB: UPDATE users SET balance=balance-100
-        Listener->>Frontend: WS: EVENT_TRANSFERRED
-    and Response
-        Backend-->>Frontend: HTTP 200 OK
-    end
-    
-    Frontend->>Buyer: Show Success & Update Balance
 ```
 
 ---
