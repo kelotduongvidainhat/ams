@@ -50,15 +50,22 @@ chmod +x scripts/enrollUser.sh
 ./scripts/enrollUser.sh admin adminpw
 ./scripts/enrollUser.sh auditor auditor123
 
-# 7. Launch Application
-echo "🚀 [Step 7/7] Launching Application (Frontend + Backend + DB)..."
-docker-compose -f docker-compose-app.yaml up -d --build
+# 7. Launch Application (DB First)
+echo "🚀 [Step 7/7] Launching Application..."
 
-# 8. Initialize Database
+# 7a. Start Postgres & IPFS
+echo "   Starting Database..."
+docker-compose -f docker-compose-app.yaml up -d postgres ipfs
+
+# 7b. Initialize Database
 echo "⏳ Waiting for Database to be ready..."
-sleep 10
+sleep 5
 echo "💾 Initializing Database Schema..."
 docker exec -i ams-postgres psql -U ams_user -d ams_db < database/schema.sql || echo "⚠️  Database might already be initialized or failed."
+
+# 7c. Start Backend & Frontend
+echo "   Starting Backend & Frontend..."
+docker-compose -f docker-compose-app.yaml up -d --build backend frontend
 
 
 # 9. Populate Extended Sample Data

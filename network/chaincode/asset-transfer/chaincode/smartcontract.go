@@ -20,26 +20,28 @@ func NewSmartContract() (*SmartContract, error) {
 // Asset describes basic details of what makes up a simple asset
 // Adjusted for generic commercial transactions (Product X)
 type Asset struct {
-	DocType      string   `json:"docType"` // docType is used to distinguish the various types of objects in state database
-	ID           string   `json:"ID"`
-	Name         string   `json:"name"`   // Product Name (e.g., "MacBook Pro")
-	Type         string   `json:"type"`   // Category (e.g., "Electronics", "RealEstate")
-	Owner        string   `json:"owner"`        // Current Owner
-	Status       string   `json:"status"`        // Status (e.g., "Available", "Sold", "Locked")
-	MetadataURL  string   `json:"metadata_url"`  // External Metadata (e.g. IPFS hash)
-	MetadataHash string   `json:"metadata_hash"` // Integrity Check (SHA-256)
-	Viewers      []string `json:"viewers"`       // List of distinct UserIDs allowed to view. "EVERYONE" for public.
+	DocType        string   `json:"docType"` // docType is used to distinguish the various types of objects in state database
+	ID             string   `json:"ID"`
+	Name           string   `json:"name"`          // Product Name (e.g., "MacBook Pro")
+	Type           string   `json:"type"`          // Category (e.g., "Electronics", "RealEstate")
+	Owner          string   `json:"owner"`         // Current Owner
+	Status         string   `json:"status"`        // Status (e.g., "Available", "Sold", "Locked")
+	MetadataURL    string   `json:"metadata_url"`  // External Metadata (e.g. IPFS hash)
+	MetadataHash   string   `json:"metadata_hash"` // Integrity Check (SHA-256)
+	Viewers        []string `json:"viewers"`       // List of distinct UserIDs allowed to view. "EVERYONE" for public.
+	UpdatedAt      int64    `json:"updatedAt"`     // Timestamp of last update
+	LastModifiedBy string   `json:"lastModifiedBy"` // Provenance: Who made the last change
+	Sequence       uint64   `json:"sequence"`      // Eventual Consistency Check
 }
 
 // User describes the participant in the network
 type User struct {
-	DocType        string `json:"docType"`
-	ID             string `json:"id"`
-	FullName       string `json:"full_name"`
-	IdentityNumber string `json:"identity_number"` // CCCD/Passport
-	WalletAddress  string `json:"wallet_address"`  // Optional: For future non-custodial features
-	Role           string `json:"role"`            // Admin, User, Auditor
-	Status         string `json:"status"`          // Active, Locked
+	DocType   string `json:"docType"`
+	ID        string `json:"id"`
+	Role      string `json:"role"`      // Admin, User, Auditor
+	Status    string `json:"status"`    // Active, Locked
+	UpdatedAt int64  `json:"updatedAt"` // Timestamp of last update
+	Sequence  uint64 `json:"sequence"`  // For eventual consistency checks
 }
 
 // ... existing code ...
@@ -55,8 +57,15 @@ func (s *SmartContract) SetUserStatus(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+
 	// 3. Update Status
 	user.Status = newStatus
+	user.UpdatedAt = timestamp.Seconds
+	user.Sequence = user.Sequence + 1
 	
 	userBytes, err := json.Marshal(user)
 	if err != nil {
@@ -105,13 +114,17 @@ type Approval struct {
 
 // InitLedger adds a base set of assets to the ledger
 func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
+	// timestamp approximation for init
+	timestamp, _ := ctx.GetStub().GetTxTimestamp()
+	ts := timestamp.Seconds
+
 	assets := []Asset{
-		{DocType: "asset", ID: "asset1", Name: "iPhone 15 Pro", Type: "Electronics", Owner: "Tomoko", Status: "Available", MetadataURL: "http://example.com/asset1.json", MetadataHash: "hash_asset1", Viewers: []string{"EVERYONE"}},
-		{DocType: "asset", ID: "asset2", Name: "Tesla Model S", Type: "Vehicle", Owner: "Brad", Status: "Available", MetadataURL: "http://example.com/asset2.json", MetadataHash: "hash_asset2", Viewers: []string{}},
-		{DocType: "asset", ID: "asset3", Name: "Penthouse Suite", Type: "RealEstate", Owner: "JinSoo", Status: "Owned", MetadataURL: "http://example.com/asset3.json", MetadataHash: "hash_asset3", Viewers: []string{"auditor"}},
-		{DocType: "asset", ID: "asset4", Name: "Gold Bar 1kg", Type: "PreciousMetal", Owner: "Max", Status: "Locked", MetadataURL: "http://example.com/asset4.json", MetadataHash: "hash_asset4", Viewers: []string{}},
-		{DocType: "asset", ID: "asset5", Name: "Antique Vase", Type: "Art", Owner: "Adriana", Status: "Available", MetadataURL: "http://example.com/asset5.json", MetadataHash: "hash_asset5", Viewers: []string{"Tomoko"}},
-		{DocType: "asset", ID: "asset6", Name: "Bitcoin", Type: "Crypto", Owner: "Michel", Status: "Available", MetadataURL: "http://example.com/asset6.json", MetadataHash: "hash_asset6", Viewers: []string{"EVERYONE"}},
+		{DocType: "asset", ID: "asset1", Name: "iPhone 15 Pro", Type: "Electronics", Owner: "Tomoko", Status: "Available", MetadataURL: "http://example.com/asset1.json", MetadataHash: "hash_asset1", Viewers: []string{"EVERYONE"}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
+		{DocType: "asset", ID: "asset2", Name: "Tesla Model S", Type: "Vehicle", Owner: "Brad", Status: "Available", MetadataURL: "http://example.com/asset2.json", MetadataHash: "hash_asset2", Viewers: []string{}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
+		{DocType: "asset", ID: "asset3", Name: "Penthouse Suite", Type: "RealEstate", Owner: "JinSoo", Status: "Owned", MetadataURL: "http://example.com/asset3.json", MetadataHash: "hash_asset3", Viewers: []string{"auditor"}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
+		{DocType: "asset", ID: "asset4", Name: "Gold Bar 1kg", Type: "PreciousMetal", Owner: "Max", Status: "Locked", MetadataURL: "http://example.com/asset4.json", MetadataHash: "hash_asset4", Viewers: []string{}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
+		{DocType: "asset", ID: "asset5", Name: "Antique Vase", Type: "Art", Owner: "Adriana", Status: "Available", MetadataURL: "http://example.com/asset5.json", MetadataHash: "hash_asset5", Viewers: []string{"Tomoko"}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
+		{DocType: "asset", ID: "asset6", Name: "Bitcoin", Type: "Crypto", Owner: "Michel", Status: "Available", MetadataURL: "http://example.com/asset6.json", MetadataHash: "hash_asset6", Viewers: []string{"EVERYONE"}, UpdatedAt: ts, LastModifiedBy: "System", Sequence: 1},
 	}
 
 	for _, asset := range assets {
@@ -126,17 +139,17 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
-	// Seed Default Users
+	// Seed Default Users (PII removed)
 	users := []User{
-		{DocType: "user", ID: "user01", FullName: "User One", IdentityNumber: "ID001", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "Tomoko", FullName: "Tomoko", IdentityNumber: "ID002", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "Brad", FullName: "Brad", IdentityNumber: "ID003", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "JinSoo", FullName: "Jin Soo", IdentityNumber: "ID004", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "Max", FullName: "Max", IdentityNumber: "ID005", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "Adriana", FullName: "Adriana", IdentityNumber: "ID006", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "Michel", FullName: "Michel", IdentityNumber: "ID007", Role: "User", Status: "Active"},
-		{DocType: "user", ID: "admin", FullName: "System Admin", IdentityNumber: "ID000", Role: "Admin", Status: "Active"},
-		{DocType: "user", ID: "auditor", FullName: "Auditor One", IdentityNumber: "ID999", Role: "Auditor", Status: "Active"},
+		{DocType: "user", ID: "user01", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "Tomoko", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "Brad", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "JinSoo", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "Max", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "Adriana", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "Michel", Role: "User", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "admin", Role: "Admin", Status: "Active", UpdatedAt: ts, Sequence: 1},
+		{DocType: "user", ID: "auditor", Role: "Auditor", Status: "Active", UpdatedAt: ts, Sequence: 1},
 	}
 
 	for _, user := range users {
@@ -163,16 +176,27 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("the asset %s already exists", id)
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+	// In a real scenario, we might use the submitter's ID
+	rawID, _ := ctx.GetClientIdentity().GetID()
+	submitterID := extractUsername(rawID)
+
 	asset := Asset{
-		DocType:      "asset",
-		ID:           id,
-		Name:         name,
-		Type:         assetType,
-		Owner:        owner,
-		Status:       status,
-		MetadataURL:  metadataUrl,
-		MetadataHash: metadataHash,
-		Viewers:      []string{}, // Default: Private to Owner
+		DocType:        "asset",
+		ID:             id,
+		Name:           name,
+		Type:           assetType,
+		Owner:          owner,
+		Status:         status,
+		MetadataURL:    metadataUrl,
+		MetadataHash:   metadataHash,
+		Viewers:        []string{}, // Default: Private to Owner
+		UpdatedAt:      timestamp.Seconds,
+		LastModifiedBy: submitterID,
+		Sequence:       1,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -223,16 +247,26 @@ func (s *SmartContract) UpdateAsset(ctx contractapi.TransactionContextInterface,
 		return err
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+	rawID, _ := ctx.GetClientIdentity().GetID()
+	submitterID := extractUsername(rawID)
+
 	asset := Asset{
-		DocType:      "asset",
-		ID:           id,
-		Name:         name,
-		Type:         assetType,
-		Owner:        owner,
-		Status:       status,
-		MetadataURL:  metadataUrl,
-		MetadataHash: metadataHash,
-		Viewers:      oldAsset.Viewers,
+		DocType:        "asset",
+		ID:             id,
+		Name:           name,
+		Type:           assetType,
+		Owner:          owner,
+		Status:         status,
+		MetadataURL:    metadataUrl,
+		MetadataHash:   metadataHash,
+		Viewers:        oldAsset.Viewers,
+		UpdatedAt:      timestamp.Seconds,
+		LastModifiedBy: submitterID,
+		Sequence:       oldAsset.Sequence + 1,
 	}
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
@@ -290,7 +324,18 @@ func (s *SmartContract) GrantAccess(ctx contractapi.TransactionContextInterface,
 		}
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+	rawID, _ := ctx.GetClientIdentity().GetID()
+	submitterID := extractUsername(rawID)
+
 	asset.Viewers = append(asset.Viewers, viewerId)
+	asset.UpdatedAt = timestamp.Seconds
+	asset.LastModifiedBy = submitterID
+	asset.Sequence = asset.Sequence + 1
+
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
 		return err
@@ -318,7 +363,18 @@ func (s *SmartContract) RevokeAccess(ctx contractapi.TransactionContextInterface
 		}
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+	rawID, _ := ctx.GetClientIdentity().GetID()
+	submitterID := extractUsername(rawID)
+
 	asset.Viewers = newViewers
+	asset.UpdatedAt = timestamp.Seconds
+	asset.LastModifiedBy = submitterID
+	asset.Sequence = asset.Sequence + 1
+
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
 		return err
@@ -480,7 +536,14 @@ func (s *SmartContract) ApproveTransfer(ctx contractapi.TransactionContextInterf
 		}
 
 		// ATOMIC TRANSFER EXECUTION
+		// Update UpdatedAt, LastModifiedBy, Sequence
+		rawID, _ := ctx.GetClientIdentity().GetID()
+		submitterID := extractUsername(rawID)
 		asset.Owner = pending.NewOwner
+		asset.UpdatedAt = now // 'now' is already defined from Timestamp
+		asset.LastModifiedBy = submitterID // Usually the new owner executing
+		asset.Sequence = asset.Sequence + 1
+
 		assetJSON, err := json.Marshal(asset)
 		if err != nil {
 			return fmt.Errorf("failed to marshal asset: %v", err)
@@ -661,7 +724,18 @@ func (s *SmartContract) TransferAsset(ctx contractapi.TransactionContextInterfac
 	// For now, we allow transfer regardless of status, but we could enforce it.
 	// if asset.Status != "Available" { return fmt.Errorf("Asset is %s, cannot transfer", asset.Status) }
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+	rawID, _ := ctx.GetClientIdentity().GetID()
+	submitterID := extractUsername(rawID)
+
 	asset.Owner = newOwner
+	asset.UpdatedAt = timestamp.Seconds
+	asset.LastModifiedBy = submitterID
+	asset.Sequence = asset.Sequence + 1
+
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
 		return err
@@ -705,8 +779,8 @@ func (s *SmartContract) GetAllAssets(ctx contractapi.TransactionContextInterface
 	return assets, nil
 }
 
-// CreateUser registers a new user in the system
-func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, id string, fullName string, identityNumber string, role string) error {
+// CreateUser registers a new user in the system (On-Chain Identity only)
+func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, id string, role string) error {
 	// Check if user already exists
 	userJSON, err := ctx.GetStub().GetState(id)
 	if err != nil {
@@ -716,13 +790,18 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 		return fmt.Errorf("the user %s already exists", id)
 	}
 
+	timestamp, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+
 	user := User{
-		ID:             id,
-		FullName:       fullName,
-		IdentityNumber: identityNumber,
-		Role:           role,
-		WalletAddress:  "", // Empty for now
-		Status:         "Active",
+		DocType:   "user",
+		ID:        id,
+		Role:      role,
+		Status:    "Active",
+		UpdatedAt: timestamp.Seconds,
+		Sequence:  1,
 	}
 	
 	userBytes, err := json.Marshal(user)

@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"database/sql"
 
 	"os"
 	"github.com/gofiber/fiber/v2"
@@ -82,7 +83,7 @@ func main() {
 			log.Printf("🔎 Explorer Query - Search: %s, Owner: %s, Type: %s", search, owner, itemType)
 
 			// Build Query
-			q := "SELECT id, name, asset_type, owner, status, metadata_url, last_tx_id FROM assets WHERE 1=1"
+			q := "SELECT id, name, asset_type, owner, status, metadata_url, last_tx_id, last_modified_by FROM assets WHERE 1=1"
 			args := []interface{}{}
 			argId := 1
 
@@ -113,20 +114,22 @@ func main() {
 			var results []map[string]interface{}
 			for rows.Next() {
 				var r struct {
-					ID          string
-					Name        string
-					Type        string
-					Owner       string
-					Status      string
-					MetadataURL string
-					LastTxID    string
+					ID             string
+					Name           string
+					Type           string
+					Owner          string
+					Status         string
+					MetadataURL    string
+					LastTxID       string
+					LastModifiedBy sql.NullString // Handle potential NULLs
 				}
-				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.LastTxID); err != nil {
+				if err := rows.Scan(&r.ID, &r.Name, &r.Type, &r.Owner, &r.Status, &r.MetadataURL, &r.LastTxID, &r.LastModifiedBy); err != nil {
 					continue
 				}
 				results = append(results, map[string]interface{}{
 					"id": r.ID, "name": r.Name, "type": r.Type, "owner": r.Owner, 
 					"status": r.Status, "metadata_url": r.MetadataURL, "last_tx_id": r.LastTxID,
+					"last_modified_by": r.LastModifiedBy.String,
 				})
 			}
 			
@@ -836,6 +839,7 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 		hash, _ := auth.HashPassword(p.Password)
 
 		// 2. Register On-Chain (CreateUser in Ledger)
+		// 2. Register On-Chain (CreateUser in Ledger) - NO PII
 		c.Request().Header.Set("X-User-ID", p.Username) 
 		
 		contract, err := getContract(c)
@@ -843,12 +847,10 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to connect to network as new user: " + err.Error()})
 		}
 		
-		log.Printf("🔹 WALLET: Creating User on-chain %s...", p.Username)
+		log.Printf("🔹 WALLET: Creating User on-chain %s (Wait for commit)...", p.Username)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.Username, 
-			p.FullName, 
-			p.IdentityNumber, 
-			"User", 
+			"User", // Role 
 		)
 
 		if err != nil {
@@ -856,11 +858,24 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create user on ledger: " + err.Error()})
 		}
 		
-		// 3. Update Password Hash in DB (since Sync Listener only syncs ID/Role, not password)
+		// 3. Chain Success! Now Insert PII into DB (Chaincode First Strategy)
+		// We use UPSERT because the Block Listener might have already inserted a "Pending Sync" placeholder
 		if pgDB != nil {
-			_, err = pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.Username)
+			log.Printf("🔹 WALLET: Inserting PII into DB for %s...", p.Username)
+			query := `
+				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, updated_at)
+				VALUES ($1, $2, $3, $4, 'User', 'Active', NOW())
+				ON CONFLICT (id) DO UPDATE SET
+					full_name = EXCLUDED.full_name,
+					identity_number = EXCLUDED.identity_number,
+					password_hash = EXCLUDED.password_hash,
+					status = 'Active', -- Start as Active
+					updated_at = NOW();
+			`
+			_, err = pgDB.Exec(query, p.Username, p.FullName, p.IdentityNumber, hash)
 			if err != nil {
-				log.Printf("⚠️ Failed to update password hash: %v", err)
+				log.Printf("⚠️ Failed to insert PII into DB (User exists on Chain but not DB?): %v", err)
+				// We don't fail the request because the Chain part succeeded (main objective)
 			}
 		}
 
@@ -892,10 +907,9 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 
 		log.Printf("Submitting Transaction: CreateUser, ID: %s", p.ID)
 		
+		// CreateUser on Chain (Id, Role only)
 		_, err = contract.SubmitTransaction("CreateUser", 
 			p.ID, 
-			p.FullName, 
-			p.IdentityNumber, 
 			p.Role, 
 		)
 
@@ -903,10 +917,24 @@ api.Post("/auth/set-password", func(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to register user: " + err.Error()})
 		}
 		
-		// Optional: Hash Password
-		if p.Password != "" && pgDB != nil {
-			hash, _ := auth.HashPassword(p.Password)
-			pgDB.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", hash, p.ID)
+		// Upsert PII to DB
+		if pgDB != nil {
+			hash := ""
+			if p.Password != "" {
+				hash, _ = auth.HashPassword(p.Password)
+			}
+			
+			query := `
+				INSERT INTO users (id, full_name, identity_number, password_hash, role, status, updated_at)
+				VALUES ($1, $2, $3, $4, $5, 'Active', NOW())
+				ON CONFLICT (id) DO UPDATE SET
+					full_name = EXCLUDED.full_name,
+					identity_number = EXCLUDED.identity_number,
+					password_hash = CASE WHEN $4 <> '' THEN $4 ELSE users.password_hash END,
+					role = EXCLUDED.role,
+					updated_at = NOW();
+			`
+			pgDB.Exec(query, p.ID, p.FullName, p.IdentityNumber, hash, p.Role)
 		}
 
 		return c.JSON(fiber.Map{"message": "User registered successfully", "id": p.ID})

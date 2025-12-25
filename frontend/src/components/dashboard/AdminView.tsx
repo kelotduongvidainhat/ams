@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Database, ArrowRightLeft, ShieldCheck, Wallet, User as UserIcon } from 'lucide-react';
+import { Users, Database, ArrowRightLeft, ShieldCheck, User as UserIcon, Lock, Unlock } from 'lucide-react';
 import { getDashboardStats, getAllUsers } from '../../services/api';
 import type { DashboardStats, UserStats, User } from '../../types';
 
@@ -147,16 +147,13 @@ export default function AdminView({ currentUser }: AdminViewProps) {
                                         {user.identity_number}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            {user.has_wallet ? (
-                                                <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                                                    <Wallet size={12} />
-                                                    Wallet Active
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-slate-500">No Wallet</span>
-                                            )}
-                                        </div>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border flex w-fit items-center gap-1 ${user.status === 'Locked'
+                                            ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                            : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                            }`}>
+                                            {user.status === 'Locked' ? <Lock size={10} /> : <Unlock size={10} />}
+                                            {user.status || 'Active'}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 text-right text-slate-400">
                                         {user.joined_at?.split(' ')[0]}

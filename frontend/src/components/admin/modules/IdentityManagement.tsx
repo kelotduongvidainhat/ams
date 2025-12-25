@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Wallet, Lock, Unlock, Shield } from 'lucide-react';
+import { Lock, Unlock, Shield } from 'lucide-react';
 
 import { getAllUsers, setUserStatus } from '../../../services/api';
 import type { UserStats } from '../../../types';
@@ -61,7 +61,7 @@ export default function IdentityManagement() {
                                 <th className="px-6 py-4">User</th>
                                 <th className="px-6 py-4">Role</th>
                                 <th className="px-6 py-4">Identity</th>
-                                <th className="px-6 py-4">Wallet</th>
+
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
@@ -91,15 +91,7 @@ export default function IdentityManagement() {
                                     <td className="px-6 py-4 text-slate-400 font-mono">
                                         {user.identity_number}
                                     </td>
-                                    <td className="px-6 py-4">
-                                        {user.has_wallet ? (
-                                            <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                                                <Wallet size={12} /> Active
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-slate-500">Missing</span>
-                                        )}
-                                    </td>
+
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium border flex w-fit items-center gap-1 ${user.status === 'Locked'
                                             ? 'bg-red-500/10 text-red-400 border-red-500/20'

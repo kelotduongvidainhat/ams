@@ -6,6 +6,7 @@ export interface Asset {
     status: string;
     metadata_url: string;
     metadata_hash?: string;
+    last_modified_by?: string;
 }
 
 export interface User {
@@ -13,7 +14,6 @@ export interface User {
     full_name: string;
     identity_number: string;
     role: string;
-    wallet_address?: string;
     status: string; // "Active" | "Locked"
 }
 
@@ -39,7 +39,6 @@ export interface DashboardStats {
 }
 
 export interface UserStats extends User {
-    has_wallet: boolean;
     joined_at: string;
 }
 
@@ -60,4 +59,5 @@ export interface PublicAsset {
     status: string;
     metadata_url: string;
     last_tx_id?: string;
+    last_modified_by?: string;
 }
